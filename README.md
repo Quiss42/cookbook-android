@@ -12,10 +12,14 @@ It is a rewrite of the Flutter client
 - Login through the browser (Nextcloud Login Flow v2) or with an app password
 - Categories with cover photos, recipe lists, server-side search
 - Recipe view with ticking off ingredients and steps, keep-screen-on while cooking
+- Create, edit and delete recipes
+- Import recipes from a web page, also via Android's share menu
+- Cooking timers with countdown notification
 - Light/dark theme, wallpaper colours, per-app language (Android 13+)
+- English and German; partial translations for 23 more languages taken from
+  the Flutter app (`tools/port_translations.py`)
 
-Planned: editing and creating recipes, importing from a URL (share menu),
-cooking timers, offline cache.
+Planned: offline cache.
 
 ## Building
 
