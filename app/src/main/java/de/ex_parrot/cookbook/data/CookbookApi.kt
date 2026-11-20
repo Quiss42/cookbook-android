@@ -5,8 +5,14 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.put
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 /** Client for the Nextcloud Cookbook app's REST API (/apps/cookbook/api). */
 class CookbookApi(account: Account, private val client: OkHttpClient) {
@@ -41,6 +47,36 @@ class CookbookApi(account: Account, private val client: OkHttpClient) {
 
     suspend fun recipe(id: String): Recipe =
         Recipe(getJson(url("api", "v1", "recipes", id)) as JsonObject)
+
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+
+    private suspend fun send(method: String, url: HttpUrl, body: JsonObject?): String {
+        val requestBody = body?.toString()?.toRequestBody(jsonMediaType)
+        return client.fetch(Request.Builder().url(url).method(method, requestBody).build())
+    }
+
+    /** Reads the id the server returns after saving (a bare number or a JSON value). */
+    private fun parseId(response: String): String {
+        val trimmed = response.trim()
+        return runCatching { (json.parseToJsonElement(trimmed) as? JsonPrimitive)?.contentOrNull }.getOrNull()
+            ?: trimmed.trim('"')
+    }
+
+    /** Creates a recipe and returns its new id. */
+    suspend fun createRecipe(recipe: JsonObject): String =
+        parseId(send("POST", url("api", "v1", "recipes"), recipe))
+
+    /** Updates a recipe and returns its id. */
+    suspend fun updateRecipe(id: String, recipe: JsonObject): String =
+        parseId(send("PUT", url("api", "v1", "recipes", id), recipe)).ifEmpty { id }
+
+    suspend fun deleteRecipe(id: String) {
+        send("DELETE", url("api", "v1", "recipes", id), null)
+    }
+
+    /** Lets the server import a recipe from a web page. */
+    suspend fun importRecipe(pageUrl: String): Recipe =
+        Recipe(json.parseToJsonElement(send("POST", url("api", "v1", "import"), buildJsonObject { put("url", pageUrl) })) as JsonObject)
 
     /** Image URL; [size] is "thumb" (250 px), "thumb16" or "full". */
     fun imageUrl(recipeId: String, size: String = "thumb"): String =

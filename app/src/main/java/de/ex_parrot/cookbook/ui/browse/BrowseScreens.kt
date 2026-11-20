@@ -21,6 +21,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
@@ -72,6 +77,9 @@ fun CategoriesScreen(
     onOpenCategory: (String) -> Unit,
     onSearch: () -> Unit,
     onSettings: () -> Unit,
+    onNewRecipe: () -> Unit,
+    onImport: () -> Unit,
+    onTimers: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val covers by viewModel.coverIds.collectAsStateWithLifecycle()
@@ -94,13 +102,29 @@ fun CategoriesScreen(
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.import_title)) },
+                                leadingIcon = { Icon(Icons.Outlined.Link, null) },
+                                onClick = { menuOpen = false; onImport() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.timers)) },
+                                leadingIcon = { Icon(Icons.Outlined.Timer, null) },
+                                onClick = { menuOpen = false; onTimers() },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.settings)) },
+                                leadingIcon = { Icon(Icons.Outlined.Settings, null) },
                                 onClick = { menuOpen = false; onSettings() },
                             )
                         }
                     }
                 },
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNewRecipe) {
+                Icon(Icons.Outlined.Add, stringResource(R.string.edit_new_title))
+            }
         },
     ) { padding ->
         when (val s = state) {
@@ -117,7 +141,7 @@ fun CategoriesScreen(
                 }
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 160.dp),
-                    contentPadding = PaddingValues(12.dp),
+                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 88.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize(),

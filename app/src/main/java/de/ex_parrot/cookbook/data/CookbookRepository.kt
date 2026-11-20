@@ -1,5 +1,8 @@
 package de.ex_parrot.cookbook.data
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.json.JsonObject
 import java.util.concurrent.ConcurrentHashMap
 
 /** Thin in-memory cache in front of [CookbookApi]. */
@@ -8,6 +11,33 @@ class CookbookRepository(val api: CookbookApi) {
     private var allRecipes: List<RecipeStub>? = null
     private val categoryRecipes = ConcurrentHashMap<String, List<RecipeStub>>()
     private val recipes = ConcurrentHashMap<String, Recipe>()
+
+    private val _changes = MutableStateFlow(0)
+    /** Incremented whenever recipes are created, changed or deleted. */
+    val changes: StateFlow<Int> = _changes
+
+    private fun invalidate(recipeId: String? = null) {
+        categories = null
+        allRecipes = null
+        categoryRecipes.clear()
+        if (recipeId != null) recipes.remove(recipeId)
+        _changes.value++
+    }
+
+    suspend fun createRecipe(recipe: JsonObject): String = api.createRecipe(recipe).also { invalidate(it) }
+
+    suspend fun updateRecipe(id: String, recipe: JsonObject): String =
+        api.updateRecipe(id, recipe).also { invalidate(id) }
+
+    suspend fun deleteRecipe(id: String) {
+        api.deleteRecipe(id)
+        invalidate(id)
+    }
+
+    suspend fun importRecipe(url: String): Recipe = api.importRecipe(url).also { invalidate(it.id) }
+
+    suspend fun categoryNames(): List<String> =
+        runCatching { categories() }.getOrDefault(emptyList()).filterNot { it.isUncategorized }.map { it.name }
 
     suspend fun categories(refresh: Boolean = false): List<Category> {
         if (!refresh) categories?.let { return it }

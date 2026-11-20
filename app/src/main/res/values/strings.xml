@@ -92,4 +92,69 @@
     <string name="settings_keep_screen_on_hint">While a recipe is open</string>
     <string name="settings_account">Account</string>
     <string name="settings_version">Version %1$s</string>
+
+    <string name="ok">OK</string>
+    <string name="save">Save</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="discard">Discard</string>
+    <string name="remove">Remove</string>
+    <string name="paste">Paste</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+
+    <!-- Delete -->
+    <string name="delete_title">Delete recipe?</string>
+    <string name="delete_text">“%1$s” will be deleted from your Nextcloud.</string>
+    <string name="delete_failed">Could not delete the recipe</string>
+
+    <!-- Editor -->
+    <string name="edit_title">Edit recipe</string>
+    <string name="edit_new_title">New recipe</string>
+    <string name="edit_section_general">General</string>
+    <string name="edit_section_times">Servings and times</string>
+    <string name="edit_add_tool">Add tool</string>
+    <string name="edit_add_ingredient">Add ingredient</string>
+    <string name="edit_add_step">Add step</string>
+    <string name="edit_save_failed">Could not save the recipe</string>
+    <string name="edit_discard_title">Discard changes?</string>
+    <string name="edit_discard_text">Your changes have not been saved.</string>
+    <string name="edit_keep_editing">Keep editing</string>
+    <string name="field_name">Name</string>
+    <string name="field_required">Required</string>
+    <string name="field_description">Description</string>
+    <string name="field_category">Category</string>
+    <string name="field_keywords">Keywords</string>
+    <string name="field_keywords_hint">Separated by commas</string>
+    <string name="field_source">Source (web address)</string>
+    <string name="field_image">Image (web address)</string>
+    <string name="field_image_hint">The server downloads the image from this address</string>
+    <string name="field_servings">Servings</string>
+    <string name="field_prep_time">Preparation</string>
+    <string name="field_cook_time">Cooking</string>
+    <string name="field_total_time">Total</string>
+    <string name="field_hours">Hours</string>
+    <string name="field_minutes">Minutes</string>
+
+    <!-- Import -->
+    <string name="import_title">Import recipe</string>
+    <string name="import_share_label">Import into Cookbook</string>
+    <string name="import_explanation">Enter the address of a recipe web page. Your Nextcloud reads the recipe from the page and saves it. You can also share a page from your browser to this app.</string>
+    <string name="import_url">Web address</string>
+    <string name="import_button">Import</string>
+    <string name="import_running">Importing … this can take a moment.</string>
+    <string name="import_failed_page">No recipe could be found on this page.</string>
+    <string name="import_failed_exists">A recipe with this name already exists.</string>
+
+    <!-- Timers -->
+    <string name="timers">Timers</string>
+    <string name="timers_empty">No timers running. Start one from a recipe with the timer button.</string>
+    <string name="timer_start">Start timer</string>
+    <string name="timer_start_button">Start</string>
+    <string name="timer_started">Timer started</string>
+    <string name="timer_cancel">Cancel timer</string>
+    <string name="timer_running_text">Timer running</string>
+    <string name="timer_done_title">Time\'s up!</string>
+    <string name="timer_channel_running">Running timers</string>
+    <string name="timer_channel_done">Finished timers</string>
 </resources>

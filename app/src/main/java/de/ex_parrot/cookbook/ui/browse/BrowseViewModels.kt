@@ -10,6 +10,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -33,6 +34,7 @@ class CategoriesViewModel(private val repository: CookbookRepository) : ViewMode
 
     init {
         load(refresh = false)
+        viewModelScope.launch { repository.changes.drop(1).collect { load(refresh = false) } }
     }
 
     fun load(refresh: Boolean = true) {
@@ -77,6 +79,7 @@ class RecipeListViewModel(
 
     init {
         load(refresh = false)
+        viewModelScope.launch { repository.changes.drop(1).collect { load(refresh = false) } }
     }
 
     fun load(refresh: Boolean = true) {
