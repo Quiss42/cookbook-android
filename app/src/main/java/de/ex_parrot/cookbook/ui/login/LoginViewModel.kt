@@ -67,10 +67,18 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
         val start = flow.start(serverUrl)
         step = LoginStep.WaitingForBrowser(start.login)
         openUrlChannel.send(start.login)
-        // Nextcloud keeps a login flow open for 20 minutes.
-        repeat(600) {
+        // Nextcloud keeps a login flow open for 20 minutes. While the browser is
+        // in front, Android may freeze this app, so single failed polls are
+        // expected: keep trying and only give up on real server errors.
+        val deadline = System.currentTimeMillis() + 20 * 60 * 1000
+        while (System.currentTimeMillis() < deadline) {
             delay(2_000)
-            val result = flow.poll(start)
+            val result = try {
+                flow.poll(start)
+            } catch (e: java.io.IOException) {
+                if (e is de.ex_parrot.cookbook.data.HttpException) throw e
+                null
+            }
             if (result != null) {
                 step = LoginStep.Working
                 finish(Account(serverUrl, result.loginName, result.appPassword, trustAllCerts))
@@ -81,7 +89,19 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
     }
 
     private suspend fun finish(account: Account) {
-        CookbookApi(account, Http.authenticated(account)).checkConnection()
+        val api = CookbookApi(account, Http.authenticated(account))
+        // The first request after returning from the browser may hit a stale
+        // connection; retry network errors a few times.
+        var attempt = 0
+        while (true) {
+            try {
+                api.checkConnection()
+                break
+            } catch (e: java.io.IOException) {
+                if (e is de.ex_parrot.cookbook.data.HttpException || ++attempt >= 3) throw e
+                delay(1_500)
+            }
+        }
         sessionManager.login(account)
     }
 

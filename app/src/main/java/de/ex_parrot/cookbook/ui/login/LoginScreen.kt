@@ -51,6 +51,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.ex_parrot.cookbook.R
+import de.ex_parrot.cookbook.ui.components.ErrorDetails
 import de.ex_parrot.cookbook.ui.components.errorMessage
 
 @Composable
@@ -97,6 +98,7 @@ fun LoginScreen(viewModel: LoginViewModel) {
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
                         )
+                        ErrorDetails(step.error)
                     }
                 }
             }

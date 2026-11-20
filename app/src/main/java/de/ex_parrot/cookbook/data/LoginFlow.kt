@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -27,7 +28,20 @@ class LoginFlow(private val client: OkHttpClient) {
             .url("$server/index.php/login/v2")
             .post(ByteArray(0).toRequestBody())
             .build()
-        return json.decodeFromString(client.fetch(request))
+        val start = json.decodeFromString<LoginFlowStart>(client.fetch(request))
+        // Behind reverse proxies Nextcloud often reports http:// or an internal
+        // host for the poll endpoint. Keep its path, but use the address the
+        // user entered (which evidently works).
+        val serverUrl = server.toHttpUrl()
+        val endpoint = runCatching {
+            start.poll.endpoint.toHttpUrl().newBuilder()
+                .scheme(serverUrl.scheme)
+                .host(serverUrl.host)
+                .port(serverUrl.port)
+                .build()
+                .toString()
+        }.getOrDefault("$server/index.php/login/v2/poll")
+        return start.copy(poll = start.poll.copy(endpoint = endpoint))
     }
 
     /** Returns the result once the user has granted access, or null while still waiting. */

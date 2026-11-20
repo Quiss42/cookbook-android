@@ -62,6 +62,7 @@ fun ErrorView(error: Throwable, onRetry: () -> Unit, modifier: Modifier = Modifi
     ) {
         Icon(Icons.Outlined.ErrorOutline, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.error)
         Text(errorMessage(error), textAlign = TextAlign.Center)
+        ErrorDetails(error)
         Button(onClick = onRetry) { Text(stringResource(R.string.retry)) }
     }
 }
@@ -105,5 +106,25 @@ fun RecipeImage(
         modifier = modifier,
         loading = { placeholder() },
         error = { placeholder() },
+    )
+}
+
+/** Technical details, shown small, to help with bug reports. */
+@Composable
+fun ErrorDetails(error: Throwable) {
+    val cause = generateSequence(error) { it.cause }.last()
+    val text = buildString {
+        append(error.javaClass.simpleName)
+        error.message?.let { append(": ").append(it.take(200)) }
+        if (cause !== error) {
+            append("\n").append(cause.javaClass.simpleName)
+            cause.message?.let { append(": ").append(it.take(200)) }
+        }
+    }
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
     )
 }
