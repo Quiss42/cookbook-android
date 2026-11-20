@@ -78,8 +78,14 @@ suspend fun OkHttpClient.fetch(request: Request): String = withContext(Dispatche
     newCall(request).execute().use { response ->
         val body = response.body?.string().orEmpty()
         if (!response.isSuccessful) {
-            throw HttpException(response.code, "HTTP ${response.code}: ${body.take(300)}")
+            throw HttpException(response.code, "HTTP ${response.code}: ${summarizeBody(body)}")
         }
         body
     }
+}
+
+/** Shortens error bodies: the <title> of HTML error pages, otherwise the start of the text. */
+private fun summarizeBody(body: String): String {
+    val title = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE).find(body)?.groupValues?.get(1)
+    return (title ?: body).trim().take(300)
 }

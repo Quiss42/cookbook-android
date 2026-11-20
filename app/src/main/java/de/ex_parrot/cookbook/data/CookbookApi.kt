@@ -17,7 +17,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 /** Client for the Nextcloud Cookbook app's REST API (/apps/cookbook/api). */
 class CookbookApi(account: Account, private val client: OkHttpClient) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
-    private val base: HttpUrl = "${account.server}/apps/cookbook".toHttpUrl()
+    // Going through index.php lets Nextcloud handle every request directly.
+    // Without it, the web server's URL rewriting must route the request, and some
+    // setups reject PUT/DELETE there with "405 Method Not Allowed".
+    private val base: HttpUrl = "${account.server}/index.php/apps/cookbook".toHttpUrl()
 
     private fun url(vararg segments: String): HttpUrl =
         base.newBuilder().apply { segments.forEach { addPathSegment(it) } }.build()
