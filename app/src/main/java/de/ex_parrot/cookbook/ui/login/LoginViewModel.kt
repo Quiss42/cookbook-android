@@ -1,0 +1,96 @@
+package de.ex_parrot.cookbook.ui.login
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import de.ex_parrot.cookbook.data.Account
+import de.ex_parrot.cookbook.data.CookbookApi
+import de.ex_parrot.cookbook.data.Http
+import de.ex_parrot.cookbook.data.LoginFlow
+import de.ex_parrot.cookbook.data.SessionManager
+import de.ex_parrot.cookbook.data.normalizeServerUrl
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.launch
+
+sealed interface LoginStep {
+    data object Idle : LoginStep
+    data object Working : LoginStep
+    data class WaitingForBrowser(val loginUrl: String) : LoginStep
+    data class Failed(val error: Throwable) : LoginStep
+}
+
+class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
+    var server by mutableStateOf("")
+    var trustAllCerts by mutableStateOf(false)
+    var useAppPassword by mutableStateOf(false)
+    var username by mutableStateOf("")
+    var appPassword by mutableStateOf("")
+    var step by mutableStateOf<LoginStep>(LoginStep.Idle)
+        private set
+
+    private val openUrlChannel = Channel<String>(Channel.BUFFERED)
+    /** URLs the screen should open in the browser. */
+    val openUrl = openUrlChannel.receiveAsFlow()
+
+    private var job: Job? = null
+
+    val canSubmit: Boolean
+        get() = server.isNotBlank() && (!useAppPassword || (username.isNotBlank() && appPassword.isNotBlank()))
+
+    fun submit() {
+        if (!canSubmit) return
+        val serverUrl = normalizeServerUrl(server)
+        job?.cancel()
+        job = viewModelScope.launch {
+            step = LoginStep.Working
+            try {
+                if (useAppPassword) {
+                    finish(Account(serverUrl, username.trim(), appPassword.trim(), trustAllCerts))
+                } else {
+                    browserLogin(serverUrl)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                step = LoginStep.Failed(e)
+            }
+        }
+    }
+
+    private suspend fun browserLogin(serverUrl: String) {
+        val flow = LoginFlow(Http.client(trustAllCerts))
+        val start = flow.start(serverUrl)
+        step = LoginStep.WaitingForBrowser(start.login)
+        openUrlChannel.send(start.login)
+        // Nextcloud keeps a login flow open for 20 minutes.
+        repeat(600) {
+            delay(2_000)
+            val result = flow.poll(start)
+            if (result != null) {
+                step = LoginStep.Working
+                finish(Account(serverUrl, result.loginName, result.appPassword, trustAllCerts))
+                return
+            }
+        }
+        step = LoginStep.Idle
+    }
+
+    private suspend fun finish(account: Account) {
+        CookbookApi(account, Http.authenticated(account)).checkConnection()
+        sessionManager.login(account)
+    }
+
+    fun reopenBrowser() {
+        (step as? LoginStep.WaitingForBrowser)?.let { openUrlChannel.trySend(it.loginUrl) }
+    }
+
+    fun cancel() {
+        job?.cancel()
+        step = LoginStep.Idle
+    }
+}

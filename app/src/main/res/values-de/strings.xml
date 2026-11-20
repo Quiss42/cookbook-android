@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="back">Zurück</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="clear">Leeren</string>
+    <string name="more">Weitere Optionen</string>
+    <string name="retry">Erneut versuchen</string>
+
+    <string name="error_unauthorized">Die Anmeldung ist nicht mehr gültig. Bitte ab- und wieder anmelden.</string>
+    <string name="error_not_found">Nicht gefunden. Ist die Cookbook-App in dieser Nextcloud installiert?</string>
+    <string name="error_http">Der Server hat mit Fehler %1$d geantwortet.</string>
+    <string name="error_certificate">Das Zertifikat des Servers konnte nicht überprüft werden.</string>
+    <string name="error_network">Der Server ist nicht erreichbar. Bitte Adresse und Verbindung prüfen.</string>
+
+    <string name="login_title">Cookbook</string>
+    <string name="login_subtitle">Deine Rezepte aus der Nextcloud-Cookbook-App</string>
+    <string name="login_server">Nextcloud-Adresse</string>
+    <string name="login_username">Benutzername</string>
+    <string name="login_app_password">App-Passwort</string>
+    <string name="login_button">Anmelden</string>
+    <string name="login_button_browser">Im Browser anmelden</string>
+    <string name="login_advanced">Erweitert</string>
+    <string name="login_use_app_password">App-Passwort eingeben</string>
+    <string name="login_use_app_password_hint">Statt der Anmeldung im Browser. Erstellen in Nextcloud unter Einstellungen → Sicherheit.</string>
+    <string name="login_trust_all">Jedes Zertifikat akzeptieren</string>
+    <string name="login_trust_all_hint">Nur für Server mit selbst signiertem Zertifikat. Unsicher: Andere könnten die Verbindung mitlesen.</string>
+    <string name="login_waiting">Im Browser anmelden und Zugriff erlauben, dann zu dieser App zurückkehren.</string>
+    <string name="login_open_browser">Browser öffnen</string>
+    <string name="logout">Abmelden</string>
+    <string name="logout_confirm">Abmelden und den Zugriff dieser App aus deiner Nextcloud entfernen?</string>
+
+    <string name="category_all">Alle Rezepte</string>
+    <string name="category_uncategorized">Ohne Kategorie</string>
+    <string name="no_recipes">Hier gibt es noch keine Rezepte.</string>
+    <plurals name="recipe_count">
+        <item quantity="one">%d Rezept</item>
+        <item quantity="other">%d Rezepte</item>
+    </plurals>
+
+    <string name="search">Suchen</string>
+    <string name="search_hint">Rezepte suchen</string>
+    <string name="search_prompt">Nach Name, Stichwort oder Kategorie suchen.</string>
+    <string name="search_no_results">Keine Rezepte gefunden.</string>
+
+    <plurals name="servings">
+        <item quantity="one">%d Portion</item>
+        <item quantity="other">%d Portionen</item>
+    </plurals>
+    <string name="prep_time">Vorbereitung %1$s</string>
+    <string name="cook_time">Kochen %1$s</string>
+    <string name="total_time">Gesamt %1$s</string>
+    <string name="duration_hours_minutes">%1$d Std. %2$d Min.</string>
+    <string name="duration_hours">%1$d Std.</string>
+    <string name="duration_minutes">%1$d Min.</string>
+    <string name="source">Originalrezept</string>
+    <string name="tools">Utensilien</string>
+    <string name="ingredients">Zutaten</string>
+    <string name="instructions">Zubereitung</string>
+    <string name="nutrition">Nährwerte</string>
+    <string name="nutrition_calories">Kalorien</string>
+    <string name="nutrition_carbohydrates">Kohlenhydrate</string>
+    <string name="nutrition_cholesterol">Cholesterin</string>
+    <string name="nutrition_fat">Fett</string>
+    <string name="nutrition_fiber">Ballaststoffe</string>
+    <string name="nutrition_protein">Eiweiß</string>
+    <string name="nutrition_saturated_fat">Gesättigte Fettsäuren</string>
+    <string name="nutrition_serving_size">Portionsgröße</string>
+    <string name="nutrition_sodium">Natrium</string>
+    <string name="nutrition_sugar">Zucker</string>
+    <string name="nutrition_trans_fat">Transfette</string>
+    <string name="nutrition_unsaturated_fat">Ungesättigte Fettsäuren</string>
+
+    <string name="settings">Einstellungen</string>
+    <string name="settings_appearance">Darstellung</string>
+    <string name="theme_system">Wie System</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_dark">Dunkel</string>
+    <string name="settings_dynamic_color">Hintergrundfarben</string>
+    <string name="settings_dynamic_color_hint">Farben aus dem Hintergrundbild verwenden</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_hint">App-Sprache in den Android-Einstellungen wählen</string>
+    <string name="settings_cooking">Kochen</string>
+    <string name="settings_keep_screen_on">Bildschirm anlassen</string>
+    <string name="settings_keep_screen_on_hint">Solange ein Rezept geöffnet ist</string>
+    <string name="settings_account">Konto</string>
+    <string name="settings_version">Version %1$s</string>
+</resources>
