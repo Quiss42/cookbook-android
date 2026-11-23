@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Delete
@@ -211,22 +212,43 @@ private fun SectionTitle(text: String) {
 @Composable
 private fun CategoryField(vm: EditRecipeViewModel) {
     var expanded by remember { mutableStateOf(false) }
-    val matches = vm.categorySuggestions.filter {
-        it.contains(vm.category.trim(), ignoreCase = true) && !it.equals(vm.category.trim(), ignoreCase = true)
+    // true: opened with the arrow, show every category; false: filter by what was typed.
+    var showAll by remember { mutableStateOf(false) }
+    val typed = vm.category.trim()
+    val items = if (showAll) {
+        vm.categorySuggestions
+    } else {
+        vm.categorySuggestions.filter { it.contains(typed, ignoreCase = true) && !it.equals(typed, ignoreCase = true) }
     }
-    ExposedDropdownMenuBox(expanded = expanded && matches.isNotEmpty(), onExpandedChange = { expanded = it }) {
+    val menuVisible = expanded && items.isNotEmpty()
+
+    ExposedDropdownMenuBox(expanded = menuVisible, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
             value = vm.category,
-            onValueChange = { vm.category = it; expanded = true },
+            onValueChange = { vm.category = it; showAll = false; expanded = true },
             label = { Text(stringResource(R.string.field_category)) },
             singleLine = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && matches.isNotEmpty()) },
+            trailingIcon = {
+                IconButton(onClick = {
+                    showAll = true
+                    expanded = !menuVisible
+                }) {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuVisible)
+                }
+            },
             keyboardOptions = sentences,
             modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable),
         )
-        ExposedDropdownMenu(expanded = expanded && matches.isNotEmpty(), onDismissRequest = { expanded = false }) {
-            matches.take(8).forEach { name ->
-                DropdownMenuItem(text = { Text(name) }, onClick = { vm.category = name; expanded = false })
+        ExposedDropdownMenu(expanded = menuVisible, onDismissRequest = { expanded = false }) {
+            items.forEach { name ->
+                val current = name.equals(typed, ignoreCase = true)
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    trailingIcon = if (current) {
+                        { Icon(Icons.Outlined.Check, null) }
+                    } else null,
+                    onClick = { vm.category = name; expanded = false; showAll = false },
+                )
             }
         }
     }
