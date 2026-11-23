@@ -45,6 +45,10 @@ class CookbookApi(account: Account, private val client: OkHttpClient) {
     suspend fun allRecipes(): List<RecipeStub> =
         getArray(url("api", "v1", "recipes")).map(::recipeStubFrom)
 
+    /** All keywords with their recipe counts (same shape as categories). */
+    suspend fun keywords(): List<Category> =
+        getArray(url("api", "v1", "keywords")).map(::categoryFrom)
+
     suspend fun search(query: String): List<RecipeStub> =
         getArray(url("api", "v1", "search", query)).map(::recipeStubFrom)
 

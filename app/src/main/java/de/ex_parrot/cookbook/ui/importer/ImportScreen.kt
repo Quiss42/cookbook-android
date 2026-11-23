@@ -49,6 +49,13 @@ import kotlinx.coroutines.launch
 fun extractUrl(text: String): String? =
     Regex("""https?://\S+""").find(text)?.value?.trimEnd('.', ',', ')', '"', '\'')
 
+/** The link in [text], or [text] itself with "https://" added if it has no scheme. */
+fun normalizeWebUrl(text: String): String {
+    extractUrl(text)?.let { return it }
+    val trimmed = text.trim()
+    return if (trimmed.isEmpty() || Regex("^[a-zA-Z][a-zA-Z0-9+.-]*://").containsMatchIn(trimmed)) trimmed else "https://$trimmed"
+}
+
 sealed interface ImportState {
     data object Idle : ImportState
     data object Importing : ImportState
@@ -66,7 +73,7 @@ class ImportViewModel(private val repository: CookbookRepository, initialUrl: St
     }
 
     fun import() {
-        val target = extractUrl(url) ?: url.trim()
+        val target = normalizeWebUrl(url)
         if (target.isBlank()) return
         viewModelScope.launch {
             state = ImportState.Importing

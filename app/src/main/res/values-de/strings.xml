@@ -115,7 +115,6 @@
     <string name="field_description">Beschreibung</string>
     <string name="field_category">Kategorie</string>
     <string name="field_keywords">Stichwörter</string>
-    <string name="field_keywords_hint">Durch Kommas getrennt</string>
     <string name="field_source">Quelle (Webadresse)</string>
     <string name="field_servings">Portionen</string>
     <string name="field_prep_time">Vorbereitung</string>
@@ -155,4 +154,11 @@
     <string name="image_none_found">Unter dieser Adresse wurde kein Bild gefunden.</string>
     <string name="image_nextcloud_files">Nextcloud-Dateien</string>
     <string name="image_folder_empty">Hier gibt es keine Ordner oder Bilder.</string>
+
+    <string name="keywords_search_or_add">Stichwort suchen oder hinzufügen</string>
+    <string name="keywords_add">Stichwort hinzufügen</string>
+    <plurals name="keywords_show_more">
+        <item quantity="one">%d weiteres anzeigen</item>
+        <item quantity="other">%d weitere anzeigen</item>
+    </plurals>
 </resources>

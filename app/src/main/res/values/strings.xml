@@ -125,7 +125,6 @@
     <string name="field_description">Description</string>
     <string name="field_category">Category</string>
     <string name="field_keywords">Keywords</string>
-    <string name="field_keywords_hint">Separated by commas</string>
     <string name="field_source">Source (web address)</string>
     <string name="field_servings">Servings</string>
     <string name="field_prep_time">Preparation</string>
@@ -168,4 +167,11 @@
     <string name="image_none_found">No image found at this address.</string>
     <string name="image_nextcloud_files">Nextcloud files</string>
     <string name="image_folder_empty">No folders or images here.</string>
+
+    <string name="keywords_search_or_add">Find or add keyword</string>
+    <string name="keywords_add">Add keyword</string>
+    <plurals name="keywords_show_more">
+        <item quantity="one">Show %d more</item>
+        <item quantity="other">Show %d more</item>
+    </plurals>
 </resources>

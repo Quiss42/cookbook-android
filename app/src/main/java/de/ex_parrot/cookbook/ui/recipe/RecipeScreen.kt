@@ -51,6 +51,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -275,10 +278,14 @@ private fun RecipeContent(recipe: Recipe, session: Session, viewModel: RecipeVie
                     Modifier
                         .fillMaxWidth()
                         .clickable { viewModel.toggleIngredient(index) }
-                        .padding(horizontal = 4.dp),
+                        .padding(horizontal = 16.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Checkbox(checked = checked, onCheckedChange = { viewModel.toggleIngredient(index) })
+                    // The whole row is the touch target, so the checkbox needn't be 48 dp tall.
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                        Checkbox(checked = checked, onCheckedChange = null)
+                    }
                     Text(
                         ingredient,
                         style = MaterialTheme.typography.bodyLarge,

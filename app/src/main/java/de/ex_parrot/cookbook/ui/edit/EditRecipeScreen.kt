@@ -168,14 +168,7 @@ private fun EditForm(vm: EditRecipeViewModel, imageLoader: coil3.ImageLoader, mo
             modifier = Modifier.fillMaxWidth(),
         )
         CategoryField(vm)
-        OutlinedTextField(
-            value = vm.keywords,
-            onValueChange = { vm.keywords = it },
-            label = { Text(stringResource(R.string.field_keywords)) },
-            supportingText = { Text(stringResource(R.string.field_keywords_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        KeywordField(vm)
         OutlinedTextField(
             value = vm.url,
             onValueChange = { vm.url = it },

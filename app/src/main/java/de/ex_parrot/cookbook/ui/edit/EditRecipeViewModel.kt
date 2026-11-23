@@ -84,7 +84,7 @@ class EditRecipeViewModel(
     var name by mutableStateOf("")
     var description by mutableStateOf("")
     var category by mutableStateOf("")
-    var keywords by mutableStateOf("")
+    val keywords: SnapshotStateList<String> = mutableStateListOf()
     var url by mutableStateOf("")
     /** The "image" value stored in the recipe when it was loaded. */
     private var originalImage = ""
@@ -107,9 +107,30 @@ class EditRecipeViewModel(
 
     var categorySuggestions by mutableStateOf<List<String>>(emptyList())
         private set
+    var keywordSuggestions by mutableStateOf<List<String>>(emptyList())
+        private set
+
+    fun toggleKeyword(keyword: String) {
+        val existing = keywords.firstOrNull { it.equals(keyword, ignoreCase = true) }
+        if (existing != null) keywords.remove(existing) else keywords.add(keyword.trim())
+    }
+
+    /** Adds a typed keyword (commas split several). Returns true if something was added. */
+    fun addKeywords(text: String): Boolean {
+        var added = false
+        text.split(',').map { it.trim() }.filter { it.isNotEmpty() }.forEach { word ->
+            if (keywords.none { it.equals(word, ignoreCase = true) }) {
+                // Reuse the spelling of an existing keyword if there is one.
+                keywords.add(keywordSuggestions.firstOrNull { it.equals(word, ignoreCase = true) } ?: word)
+                added = true
+            }
+        }
+        return added
+    }
 
     init {
         viewModelScope.launch { categorySuggestions = repository.categoryNames() }
+        viewModelScope.launch { keywordSuggestions = repository.keywordNames() }
         if (recipeId != null) load(recipeId) else snapshot = currentState()
     }
 
@@ -132,7 +153,7 @@ class EditRecipeViewModel(
         name = recipe.name
         description = recipe.description
         category = recipe.category
-        keywords = recipe.keywords
+        keywords.replaceWith(recipe.keywords.split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct())
         url = recipe.url
         originalImage = (recipe.raw["image"] as? JsonPrimitive)?.content.orEmpty()
         hasOriginalImage = originalImage.isNotBlank()
@@ -207,8 +228,8 @@ class EditRecipeViewModel(
         putString("name", name)
         putString("description", description)
         putString("recipeCategory", category)
-        putString("keywords", keywords.split(',').map { it.trim() }.filter { it.isNotEmpty() }.joinToString(","))
-        putString("url", url)
+        putString("keywords", keywords.map { it.trim() }.filter { it.isNotEmpty() }.joinToString(","))
+        putString("url", if (url.isBlank()) "" else de.ex_parrot.cookbook.ui.importer.normalizeWebUrl(url))
         putString("image", originalImage)
         fields["recipeYield"] = JsonPrimitive(servings.trim().toIntOrNull() ?: 1)
         putString("prepTime", prepTime.toIso())

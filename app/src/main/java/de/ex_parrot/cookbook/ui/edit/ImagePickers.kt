@@ -83,6 +83,7 @@ import de.ex_parrot.cookbook.ui.components.LoadingView
 import de.ex_parrot.cookbook.ui.components.RecipeImage
 import de.ex_parrot.cookbook.ui.components.errorMessage
 import de.ex_parrot.cookbook.ui.importer.extractUrl
+import de.ex_parrot.cookbook.ui.importer.normalizeWebUrl
 
 /** Image preview with the four ways to choose a picture. */
 @Composable
@@ -209,7 +210,7 @@ private fun WebImageDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(extractUrl(url) ?: url) }, enabled = url.isNotBlank()) {
+            TextButton(onClick = { onConfirm(normalizeWebUrl(url)) }, enabled = url.isNotBlank()) {
                 Text(stringResource(R.string.ok))
             }
         },

@@ -36,6 +36,13 @@ class CookbookRepository(val api: CookbookApi) {
 
     suspend fun importRecipe(url: String): Recipe = api.importRecipe(url).also { invalidate(it.id) }
 
+    /** Existing keywords, most used first. */
+    suspend fun keywordNames(): List<String> =
+        runCatching { api.keywords() }.getOrDefault(emptyList())
+            .filter { it.name.isNotBlank() }
+            .sortedWith(compareByDescending<Category> { it.recipeCount }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+            .map { it.name }
+
     suspend fun categoryNames(): List<String> =
         runCatching { categories() }.getOrDefault(emptyList()).filterNot { it.isUncategorized }.map { it.name }
 
