@@ -173,6 +173,8 @@ fun ImageSection(vm: EditRecipeViewModel, imageLoader: ImageLoader) {
     }
     if (showWeb) {
         WebImageDialog(
+            // The recipe's source page usually has a fitting preview image.
+            initialUrl = vm.url.trim(),
             onConfirm = { vm.useWebImage(it); showWeb = false },
             onDismiss = { showWeb = false },
         )
@@ -185,8 +187,8 @@ private fun ImageChip(icon: androidx.compose.ui.graphics.vector.ImageVector, lab
 }
 
 @Composable
-private fun WebImageDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    var url by remember { mutableStateOf("") }
+private fun WebImageDialog(initialUrl: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var url by remember { mutableStateOf(initialUrl) }
     val clipboard = LocalClipboardManager.current
     AlertDialog(
         onDismissRequest = onDismiss,
