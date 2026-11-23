@@ -60,6 +60,7 @@ import de.ex_parrot.cookbook.ui.components.errorMessage
 
 @Composable
 fun EditRecipeScreen(
+    imageLoader: coil3.ImageLoader,
     viewModel: EditRecipeViewModel,
     onSaved: (id: String, name: String) -> Unit,
     onClose: () -> Unit,
@@ -99,7 +100,7 @@ fun EditRecipeScreen(
         when (val s = loadState) {
             Loadable.Loading -> LoadingView(Modifier.padding(padding))
             is Loadable.Failed -> ErrorView(s.error, { viewModel.load() }, Modifier.padding(padding))
-            is Loadable.Ready -> EditForm(viewModel, Modifier.padding(padding))
+            is Loadable.Ready -> EditForm(viewModel, imageLoader, Modifier.padding(padding))
         }
     }
 
@@ -133,7 +134,7 @@ fun EditRecipeScreen(
 }
 
 @Composable
-private fun EditForm(vm: EditRecipeViewModel, modifier: Modifier) {
+private fun EditForm(vm: EditRecipeViewModel, imageLoader: coil3.ImageLoader, modifier: Modifier) {
     Column(
         modifier
             .fillMaxSize()
@@ -142,6 +143,9 @@ private fun EditForm(vm: EditRecipeViewModel, modifier: Modifier) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        SectionTitle(stringResource(R.string.edit_section_image))
+        ImageSection(vm, imageLoader)
+
         SectionTitle(stringResource(R.string.edit_section_general))
         OutlinedTextField(
             value = vm.name,
@@ -176,15 +180,6 @@ private fun EditForm(vm: EditRecipeViewModel, modifier: Modifier) {
             value = vm.url,
             onValueChange = { vm.url = it },
             label = { Text(stringResource(R.string.field_source)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = vm.imageUrl,
-            onValueChange = { vm.imageUrl = it },
-            label = { Text(stringResource(R.string.field_image)) },
-            supportingText = { Text(stringResource(R.string.field_image_hint)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             modifier = Modifier.fillMaxWidth(),

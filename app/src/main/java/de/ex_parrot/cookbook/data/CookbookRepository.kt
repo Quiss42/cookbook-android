@@ -67,5 +67,5 @@ class CookbookRepository(val api: CookbookApi) {
 
     suspend fun search(query: String): List<RecipeStub> = api.search(query)
 
-    fun imageUrl(recipeId: String, size: String = "thumb") = api.imageUrl(recipeId, size)
+    fun imageUrl(recipeId: String, size: String = "thumb", version: String? = null) = api.imageUrl(recipeId, size, version)
 }

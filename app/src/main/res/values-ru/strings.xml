@@ -17,7 +17,6 @@
     <string name="field_category">Категория:</string>
     <string name="field_source">Источник:</string>
     <string name="source">Источник</string>
-    <string name="field_image">Изображение:</string>
     <string name="field_prep_time">Время на подготовку:</string>
     <string name="field_cook_time">Время готовки:</string>
     <string name="field_total_time">Общее время:</string>

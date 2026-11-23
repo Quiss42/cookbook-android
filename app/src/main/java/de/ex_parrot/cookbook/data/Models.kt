@@ -38,6 +38,7 @@ data class Recipe(val raw: JsonObject) {
     val category: String get() = raw.string("recipeCategory")
     val keywords: String get() = raw.string("keywords")
     val recipeYield: Int? get() = raw.int("recipeYield")
+    val dateModified: String? get() = raw.string("dateModified").ifEmpty { null }
     val prepTime: Duration? get() = parseIsoDuration(raw.string("prepTime"))
     val cookTime: Duration? get() = parseIsoDuration(raw.string("cookTime"))
     val totalTime: Duration? get() = parseIsoDuration(raw.string("totalTime"))

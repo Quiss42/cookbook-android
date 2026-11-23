@@ -5,9 +5,15 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.ex_parrot.cookbook.data.CloudEntry
 import de.ex_parrot.cookbook.data.CookbookRepository
+import de.ex_parrot.cookbook.data.Http
+import de.ex_parrot.cookbook.data.ImageTools
+import de.ex_parrot.cookbook.data.NextcloudFiles
 import de.ex_parrot.cookbook.data.Recipe
 import de.ex_parrot.cookbook.ui.components.Loadable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +22,19 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import java.io.File
 import java.time.Duration
+
+/** What should happen with the recipe image when saving. */
+sealed interface ImageSelection {
+    /** Leave the image as it is. */
+    data object Keep : ImageSelection
+    data object Removed : ImageSelection
+    /** A file in the user's Nextcloud; Cookbook copies it into the recipe folder. */
+    data class Cloud(val path: String, val fileId: String?) : ImageSelection
+    /** A prepared JPEG on the phone; uploaded temporarily when saving. */
+    data class Local(val file: File) : ImageSelection
+}
 
 /** Hours and minutes as edited in two text fields. */
 class DurationField {
@@ -48,6 +66,8 @@ sealed interface SaveState {
 
 class EditRecipeViewModel(
     private val repository: CookbookRepository,
+    val files: NextcloudFiles,
+    private val appContext: Context,
     private val recipeId: String?,
 ) : ViewModel() {
     val isNew = recipeId == null
@@ -66,7 +86,17 @@ class EditRecipeViewModel(
     var category by mutableStateOf("")
     var keywords by mutableStateOf("")
     var url by mutableStateOf("")
-    var imageUrl by mutableStateOf("")
+    /** The "image" value stored in the recipe when it was loaded. */
+    private var originalImage = ""
+    var hasOriginalImage by mutableStateOf(false)
+        private set
+    var originalImageVersion by mutableStateOf<String?>(null)
+        private set
+    var imageSelection by mutableStateOf<ImageSelection>(ImageSelection.Keep)
+        private set
+    var imageBusy by mutableStateOf(false)
+        private set
+    var imageError by mutableStateOf<Throwable?>(null)
     var servings by mutableStateOf("")
     val prepTime = DurationField()
     val cookTime = DurationField()
@@ -104,7 +134,9 @@ class EditRecipeViewModel(
         category = recipe.category
         keywords = recipe.keywords
         url = recipe.url
-        imageUrl = (recipe.raw["image"] as? JsonPrimitive)?.content.orEmpty()
+        originalImage = (recipe.raw["image"] as? JsonPrimitive)?.content.orEmpty()
+        hasOriginalImage = originalImage.isNotBlank()
+        originalImageVersion = recipe.dateModified
         servings = recipe.recipeYield?.toString().orEmpty()
         prepTime.set(recipe.prepTime)
         cookTime.set(recipe.cookTime)
@@ -122,7 +154,47 @@ class EditRecipeViewModel(
 
     private fun currentState(): String = toJson().toString()
 
-    val hasChanges: Boolean get() = currentState() != snapshot
+    val hasChanges: Boolean get() = currentState() != snapshot || imageSelection != ImageSelection.Keep
+
+    fun originalImageUrl(): String? =
+        if (recipeId != null && hasOriginalImage) repository.imageUrl(recipeId, "full", originalImageVersion) else null
+
+    fun selectCloudImage(entry: CloudEntry) {
+        imageSelection = ImageSelection.Cloud(entry.path, entry.fileId)
+    }
+
+    fun removeImage() {
+        imageSelection = ImageSelection.Removed
+    }
+
+    fun resetImage() {
+        imageSelection = ImageSelection.Keep
+    }
+
+    /** Downloads the image (or a page's preview image) on the phone. */
+    fun useWebImage(url: String) = prepareImage {
+        val bytes = ImageTools.download(Http.client(false), url.trim())
+        ImageTools.prepare(appContext, bytes)
+    }
+
+    /** Uses a photo from the camera or gallery. */
+    fun useLocalImage(uri: Uri) = prepareImage { ImageTools.prepare(appContext, uri) }
+
+    private fun prepareImage(block: suspend () -> File) {
+        viewModelScope.launch {
+            imageBusy = true
+            imageError = null
+            try {
+                imageSelection = ImageSelection.Local(block())
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                imageError = e
+            } finally {
+                imageBusy = false
+            }
+        }
+    }
 
     val canSave: Boolean get() = name.isNotBlank() && saveState != SaveState.Saving
 
@@ -137,7 +209,7 @@ class EditRecipeViewModel(
         putString("recipeCategory", category)
         putString("keywords", keywords.split(',').map { it.trim() }.filter { it.isNotEmpty() }.joinToString(","))
         putString("url", url)
-        putString("image", imageUrl)
+        putString("image", originalImage)
         fields["recipeYield"] = JsonPrimitive(servings.trim().toIntOrNull() ?: 1)
         putString("prepTime", prepTime.toIso())
         putString("cookTime", cookTime.toIso())
@@ -152,15 +224,33 @@ class EditRecipeViewModel(
         if (!canSave) return
         viewModelScope.launch {
             saveState = SaveState.Saving
+            var tempPath: String? = null
             saveState = try {
-                val json = toJson()
+                val image = when (val selection = imageSelection) {
+                    ImageSelection.Keep -> originalImage
+                    ImageSelection.Removed -> ""
+                    is ImageSelection.Cloud -> selection.path
+                    is ImageSelection.Local -> {
+                        // Cookbook copies files given by path into the recipe folder,
+                        // so a temporary upload is enough.
+                        val path = "/.cookbook-upload-${System.currentTimeMillis()}.jpg"
+                        files.upload(path, selection.file.readBytes(), "image/jpeg")
+                        tempPath = path
+                        path
+                    }
+                }
+                val json = JsonObject(toJson() + ("image" to JsonPrimitive(image)))
                 val id = if (recipeId == null) repository.createRecipe(json) else repository.updateRecipe(recipeId, json)
+                originalImage = image
+                imageSelection = ImageSelection.Keep
                 snapshot = currentState()
                 SaveState.Saved(id)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Throwable) {
                 SaveState.Failed(e)
+            } finally {
+                tempPath?.let { path -> runCatching { files.delete(path) } }
             }
         }
     }

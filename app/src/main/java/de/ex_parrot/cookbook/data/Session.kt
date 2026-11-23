@@ -18,6 +18,7 @@ import okio.Path.Companion.toOkioPath
 class Session(context: Context, val account: Account) {
     val client = Http.authenticated(account)
     val repository = CookbookRepository(CookbookApi(account, client))
+    val files = NextcloudFiles(account, client)
     val imageLoader: ImageLoader = ImageLoader.Builder(context)
         .components { add(OkHttpNetworkFetcherFactory(callFactory = { client })) }
         .diskCache {

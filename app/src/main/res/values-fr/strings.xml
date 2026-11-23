@@ -16,7 +16,6 @@
     <string name="field_keywords">Mots-clés :</string>
     <string name="field_category">Catégorie :</string>
     <string name="field_source">Source :</string>
-    <string name="field_image">Image :</string>
     <string name="field_prep_time">Durée de préparation :</string>
     <string name="field_cook_time">Durée de cuisson :</string>
     <string name="field_total_time">Durée totale :</string>

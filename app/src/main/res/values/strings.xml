@@ -127,8 +127,6 @@
     <string name="field_keywords">Keywords</string>
     <string name="field_keywords_hint">Separated by commas</string>
     <string name="field_source">Source (web address)</string>
-    <string name="field_image">Image (web address)</string>
-    <string name="field_image_hint">The server downloads the image from this address</string>
     <string name="field_servings">Servings</string>
     <string name="field_prep_time">Preparation</string>
     <string name="field_cook_time">Cooking</string>
@@ -157,4 +155,17 @@
     <string name="timer_done_title">Time\'s up!</string>
     <string name="timer_channel_running">Running timers</string>
     <string name="timer_channel_done">Finished timers</string>
+
+    <!-- Recipe image -->
+    <string name="edit_section_image">Photo</string>
+    <string name="image_from_nextcloud">Nextcloud</string>
+    <string name="image_from_web">Web address</string>
+    <string name="image_from_camera">Camera</string>
+    <string name="image_from_gallery">Gallery</string>
+    <string name="image_undo">Undo</string>
+    <string name="image_remove">Remove</string>
+    <string name="image_web_hint">Address of an image, or of a web page: then its preview image is used. Your phone downloads it.</string>
+    <string name="image_none_found">No image found at this address.</string>
+    <string name="image_nextcloud_files">Nextcloud files</string>
+    <string name="image_folder_empty">No folders or images here.</string>
 </resources>

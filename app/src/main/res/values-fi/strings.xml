@@ -17,7 +17,6 @@
     <string name="field_category">Luokka:</string>
     <string name="field_source">Lähde:</string>
     <string name="source">Lähde</string>
-    <string name="field_image">Kuva:</string>
     <string name="field_prep_time">Esivalmistelujen kesto:</string>
     <string name="field_cook_time">Valmistuksen kesto:</string>
     <string name="field_total_time">Kokonaiskesto:</string>

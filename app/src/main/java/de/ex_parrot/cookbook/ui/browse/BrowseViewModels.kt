@@ -28,9 +28,9 @@ class CategoriesViewModel(private val repository: CookbookRepository) : ViewMode
     private val _state = MutableStateFlow<Loadable<CategoryOverview>>(Loadable.Loading)
     val state: StateFlow<Loadable<CategoryOverview>> = _state
 
-    /** Recipe id whose photo represents each category (null = no recipes / not loaded). */
-    private val _coverIds = MutableStateFlow<Map<String, String?>>(emptyMap())
-    val coverIds: StateFlow<Map<String, String?>> = _coverIds
+    /** Recipe whose photo represents each category (null = no recipes / not loaded). */
+    private val _coverIds = MutableStateFlow<Map<String, RecipeStub?>>(emptyMap())
+    val coverIds: StateFlow<Map<String, RecipeStub?>> = _coverIds
 
     init {
         load(refresh = false)
@@ -63,7 +63,7 @@ class CategoriesViewModel(private val repository: CookbookRepository) : ViewMode
                     val first = runCatching {
                         if (name == ALL_RECIPES) repository.allRecipes(refresh) else repository.recipesInCategory(name, refresh)
                     }.getOrNull()?.firstOrNull()
-                    _coverIds.update { it + (name to first?.id) }
+                    _coverIds.update { it + (name to first) }
                 }
             }
         }.awaitAll()

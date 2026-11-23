@@ -32,7 +32,6 @@ MAPPING = {
     "field_servings": "recipe.fields.servings.else",
     "field_source": "recipe.fields.source",
     "source": "recipe.fields.source_button",
-    "field_image": "recipe.fields.image",
     "field_prep_time": "recipe.fields.time.prep",
     "field_cook_time": "recipe.fields.time.cook",
     "field_total_time": "recipe.fields.time.total",

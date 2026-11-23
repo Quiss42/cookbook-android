@@ -184,7 +184,10 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
         composable<EditRecipeRoute> { entry ->
             val route = entry.toRoute<EditRecipeRoute>()
             EditRecipeScreen(
-                viewModel = viewModel { EditRecipeViewModel(repository, route.id) },
+                imageLoader = session.imageLoader,
+                viewModel = viewModel {
+                    EditRecipeViewModel(repository, session.files, context.applicationContext, route.id)
+                },
                 onSaved = { id, name ->
                     if (route.id == null) {
                         // Show the new recipe instead of the editor.

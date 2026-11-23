@@ -15,7 +15,6 @@
     <string name="field_category">Category:</string>
     <string name="field_source">Source:</string>
     <string name="source">Heimild</string>
-    <string name="field_image">Image:</string>
     <string name="field_prep_time">Preparation time:</string>
     <string name="field_cook_time">Cooking time:</string>
     <string name="field_total_time">Total time:</string>

@@ -17,7 +17,6 @@
     <string name="field_category">类别：</string>
     <string name="field_source">原材料：</string>
     <string name="source">来源</string>
-    <string name="field_image">图片：</string>
     <string name="field_prep_time">准备时间：</string>
     <string name="field_cook_time">烹饪时间</string>
     <string name="field_total_time">总时间：</string>

@@ -117,8 +117,6 @@
     <string name="field_keywords">Stichwörter</string>
     <string name="field_keywords_hint">Durch Kommas getrennt</string>
     <string name="field_source">Quelle (Webadresse)</string>
-    <string name="field_image">Bild (Webadresse)</string>
-    <string name="field_image_hint">Der Server lädt das Bild von dieser Adresse herunter</string>
     <string name="field_servings">Portionen</string>
     <string name="field_prep_time">Vorbereitung</string>
     <string name="field_cook_time">Kochen</string>
@@ -145,4 +143,16 @@
     <string name="timer_done_title">Zeit ist um!</string>
     <string name="timer_channel_running">Laufende Timer</string>
     <string name="timer_channel_done">Abgelaufene Timer</string>
+
+    <string name="edit_section_image">Foto</string>
+    <string name="image_from_nextcloud">Nextcloud</string>
+    <string name="image_from_web">Webadresse</string>
+    <string name="image_from_camera">Kamera</string>
+    <string name="image_from_gallery">Galerie</string>
+    <string name="image_undo">Rückgängig</string>
+    <string name="image_remove">Entfernen</string>
+    <string name="image_web_hint">Adresse eines Bildes oder einer Webseite: Dann wird deren Vorschaubild verwendet. Dein Handy lädt es herunter.</string>
+    <string name="image_none_found">Unter dieser Adresse wurde kein Bild gefunden.</string>
+    <string name="image_nextcloud_files">Nextcloud-Dateien</string>
+    <string name="image_folder_empty">Hier gibt es keine Ordner oder Bilder.</string>
 </resources>

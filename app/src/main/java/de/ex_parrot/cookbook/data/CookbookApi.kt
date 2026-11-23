@@ -82,9 +82,11 @@ class CookbookApi(account: Account, private val client: OkHttpClient) {
         Recipe(json.parseToJsonElement(send("POST", url("api", "v1", "import"), buildJsonObject { put("url", pageUrl) })) as JsonObject)
 
     /** Image URL; [size] is "thumb" (250 px), "thumb16" or "full". */
-    fun imageUrl(recipeId: String, size: String = "thumb"): String =
+    /** [version] (e.g. dateModified) only changes the URL so cached images are refreshed. */
+    fun imageUrl(recipeId: String, size: String = "thumb", version: String? = null): String =
         url("api", "v1", "recipes", recipeId, "image").newBuilder()
             .addQueryParameter("size", size)
+            .apply { if (!version.isNullOrBlank()) addQueryParameter("v", version.hashCode().toUInt().toString(16)) }
             .build()
             .toString()
 }
