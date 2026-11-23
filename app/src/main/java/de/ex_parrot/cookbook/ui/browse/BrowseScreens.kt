@@ -80,6 +80,7 @@ fun CategoriesScreen(
     onNewRecipe: () -> Unit,
     onImport: () -> Unit,
     onTimers: () -> Unit,
+    columns: Int,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val covers by viewModel.coverIds.collectAsStateWithLifecycle()
@@ -140,7 +141,7 @@ fun CategoriesScreen(
                     s.value.categories.forEach { add(it.name to it.recipeCount) }
                 }
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 160.dp),
+                    columns = GridCells.Fixed(columns.coerceIn(1, 3)),
                     contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 88.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -148,6 +149,7 @@ fun CategoriesScreen(
                 ) {
                     items(entries, key = { it.first }) { (name, count) ->
                         CategoryCard(
+                            columns = columns,
                             title = categoryTitle(name),
                             count = count,
                             imageUrl = covers[name]?.let { session.repository.imageUrl(it.id, version = it.dateModified) },
@@ -162,17 +164,24 @@ fun CategoriesScreen(
 }
 
 @Composable
-private fun CategoryCard(title: String, count: Int, imageUrl: String?, session: Session, onClick: () -> Unit) {
+private fun CategoryCard(columns: Int, title: String, count: Int, imageUrl: String?, session: Session, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         RecipeImage(
             url = imageUrl,
             imageLoader = session.imageLoader,
-            modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f),
+            // Wide pictures for one column, square ones for three.
+            modifier = Modifier.fillMaxWidth().aspectRatio(
+                when (columns) {
+                    1 -> 16f / 9f
+                    3 -> 1f
+                    else -> 4f / 3f
+                },
+            ),
         )
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+        Column(Modifier.padding(horizontal = if (columns == 3) 8.dp else 12.dp, vertical = 10.dp)) {
             Text(
                 title,
-                style = MaterialTheme.typography.titleMedium,
+                style = if (columns == 3) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

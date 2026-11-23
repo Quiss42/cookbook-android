@@ -3,6 +3,7 @@ package de.ex_parrot.cookbook.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -39,12 +40,15 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val keepScreenOn: Boolean = true,
+    /** Categories per row on the start screen (1-3). */
+    val categoryColumns: Int = 2,
 )
 
 class SettingsStore(private val context: Context) {
     private val themeKey = stringPreferencesKey("theme_mode")
     private val dynamicColorKey = booleanPreferencesKey("dynamic_color")
     private val keepScreenOnKey = booleanPreferencesKey("keep_screen_on")
+    private val categoryColumnsKey = intPreferencesKey("category_columns")
 
     val settings: Flow<AppSettings> = context.settingsDataStore.data.map { prefs ->
         AppSettings(
@@ -52,6 +56,7 @@ class SettingsStore(private val context: Context) {
                 ?: ThemeMode.SYSTEM,
             dynamicColor = prefs[dynamicColorKey] ?: true,
             keepScreenOn = prefs[keepScreenOnKey] ?: true,
+            categoryColumns = (prefs[categoryColumnsKey] ?: 2).coerceIn(1, 3),
         )
     }
 
@@ -61,6 +66,10 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setDynamicColor(enabled: Boolean) {
         context.settingsDataStore.edit { it[dynamicColorKey] = enabled }
+    }
+
+    suspend fun setCategoryColumns(columns: Int) {
+        context.settingsDataStore.edit { it[categoryColumnsKey] = columns.coerceIn(1, 3) }
     }
 
     suspend fun setKeepScreenOn(enabled: Boolean) {

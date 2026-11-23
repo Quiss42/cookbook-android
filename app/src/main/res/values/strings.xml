@@ -174,4 +174,5 @@
         <item quantity="one">Show %d more</item>
         <item quantity="other">Show %d more</item>
     </plurals>
+    <string name="settings_category_columns">Categories per row</string>
 </resources>

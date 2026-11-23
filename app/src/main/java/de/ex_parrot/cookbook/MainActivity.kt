@@ -146,6 +146,7 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
                 onNewRecipe = { nav.navigate(EditRecipeRoute()) },
                 onImport = { nav.navigate(ImportRoute()) },
                 onTimers = { nav.navigate(TimersRoute) },
+                columns = settings.categoryColumns,
             )
         }
         composable<RecipeListRoute> { entry ->

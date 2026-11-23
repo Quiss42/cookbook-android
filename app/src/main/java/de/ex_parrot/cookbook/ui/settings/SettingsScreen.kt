@@ -23,6 +23,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -91,6 +94,20 @@ fun SettingsScreen(
                     },
                 )
             }
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_category_columns)) },
+                supportingContent = {
+                    SingleChoiceSegmentedButtonRow(Modifier.padding(top = 8.dp)) {
+                        (1..3).forEach { count ->
+                            SegmentedButton(
+                                selected = settings.categoryColumns == count,
+                                onClick = { scope.launch { settingsStore.setCategoryColumns(count) } },
+                                shape = SegmentedButtonDefaults.itemShape(index = count - 1, count = 3),
+                            ) { Text("$count") }
+                        }
+                    }
+                },
+            )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 SwitchItem(
                     title = stringResource(R.string.settings_dynamic_color),
