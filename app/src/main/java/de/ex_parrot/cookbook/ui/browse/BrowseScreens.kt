@@ -169,16 +169,15 @@ private fun CategoryCard(columns: Int, title: String, count: Int, imageUrl: Stri
         RecipeImage(
             url = imageUrl,
             imageLoader = session.imageLoader,
-            // Wide pictures for one column, square ones for three.
-            modifier = Modifier.fillMaxWidth().aspectRatio(
-                when (columns) {
-                    1 -> 16f / 9f
-                    3 -> 1f
-                    else -> 4f / 3f
-                },
-            ),
+            // Wide pictures for one column, 4:3 for two or three.
+            modifier = Modifier.fillMaxWidth().aspectRatio(if (columns == 1) 16f / 9f else 4f / 3f),
         )
-        Column(Modifier.padding(horizontal = if (columns == 3) 8.dp else 12.dp, vertical = 10.dp)) {
+        Column(
+            Modifier.padding(
+                horizontal = if (columns == 3) 8.dp else 12.dp,
+                vertical = if (columns == 1) 10.dp else 5.dp,
+            ),
+        ) {
             Text(
                 title,
                 style = if (columns == 3) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
