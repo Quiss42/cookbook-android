@@ -181,4 +181,16 @@
     <string name="update_found_text">Version %1$s ist verfügbar (installiert: %2$s). Der Download öffnet sich im Browser.</string>
     <string name="update_none">Du hast die neueste Version (%1$s).</string>
     <string name="update_check_failed">Suche nach Updates fehlgeschlagen. Ist das Handy online?</string>
+
+    <string name="offline_banner">Offline – gespeicherte Rezepte</string>
+    <string name="offline_banner_since">Offline – Stand vom %1$s</string>
+    <string name="settings_offline">Offline</string>
+    <plurals name="offline_recipe_count">
+        <item quantity="one">%d Rezept offline verfügbar</item>
+        <item quantity="other">%d Rezepte offline verfügbar</item>
+    </plurals>
+    <string name="offline_last_sync">Zuletzt abgeglichen: %1$s</string>
+    <string name="offline_never">Noch nicht abgeglichen</string>
+    <string name="offline_syncing">Wird abgeglichen …</string>
+    <string name="offline_sync_now">Jetzt abgleichen</string>
 </resources>

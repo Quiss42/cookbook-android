@@ -4,9 +4,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.JsonObject
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.withPermit
 
 /** Thin in-memory cache in front of [CookbookApi]. */
-class CookbookRepository(val api: CookbookApi) {
+class CookbookRepository(val api: CookbookApi, private val store: OfflineStore? = null) {
     private var categories: List<Category>? = null
     private var allRecipes: List<RecipeStub>? = null
     private val categoryRecipes = ConcurrentHashMap<String, List<RecipeStub>>()
@@ -73,6 +76,45 @@ class CookbookRepository(val api: CookbookApi) {
     }
 
     suspend fun search(query: String): List<RecipeStub> = api.search(query)
+
+    /**
+     * Brings the offline copy up to date: downloads every recipe that is new or
+     * changed since the last sync (by dateModified) and forgets deleted ones.
+     * Returns the current recipe list, or null if the server was unreachable.
+     */
+    suspend fun syncOffline(onRecipe: (RecipeStub) -> Unit = {}): List<RecipeStub>? {
+        val store = store ?: return null
+        val stubs = allRecipes(refresh = true)
+        if (store.offline.value) return null // list came from the phone, not the server
+        categories(refresh = true)
+        val index = store.readIndex().toMutableMap()
+        val limit = kotlinx.coroutines.sync.Semaphore(4)
+        kotlinx.coroutines.coroutineScope {
+            stubs.map { stub ->
+                async {
+                    limit.withPermit {
+                        val modified = stub.dateModified.orEmpty()
+                        if (index[stub.id] != modified || modified.isEmpty()) {
+                            // Fetching stores the answer as the offline copy.
+                            runCatching { recipe(stub.id, refresh = true) }.onSuccess {
+                                // Only count it if it really came from the server.
+                                if (!store.offline.value) synchronized(index) { index[stub.id] = modified }
+                            }
+                        }
+                        onRecipe(stub)
+                    }
+                }
+            }.awaitAll()
+        }
+        val current = stubs.map { it.id }.toSet()
+        index.keys.filter { it !in current }.forEach { id ->
+            store.delete(api.recipeUrl(id))
+            index.remove(id)
+        }
+        store.writeIndex(index)
+        store.markSynced()
+        return stubs
+    }
 
     fun imageUrl(recipeId: String, size: String = "thumb", version: String? = null) = api.imageUrl(recipeId, size, version)
 }

@@ -133,7 +133,7 @@ fun CategoriesScreen(
             is Loadable.Failed -> ErrorView(s.error, { viewModel.load() }, Modifier.padding(padding))
             is Loadable.Ready -> PullToRefreshBox(
                 isRefreshing = s.refreshing,
-                onRefresh = { viewModel.load() },
+                onRefresh = { viewModel.load(); session.requestSync(force = true) },
                 modifier = Modifier.padding(padding).fillMaxSize(),
             ) {
                 val entries = buildList {

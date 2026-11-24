@@ -15,7 +15,12 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
 /** Client for the Nextcloud Cookbook app's REST API (/apps/cookbook/api). */
-class CookbookApi(account: Account, private val client: OkHttpClient) {
+class CookbookApi(
+    account: Account,
+    private val client: OkHttpClient,
+    /** Optional offline copy: GET answers are stored and used when the server is unreachable. */
+    private val store: OfflineStore? = null,
+) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     // Going through index.php lets Nextcloud handle every request directly.
     // Without it, the web server's URL rewriting must route the request, and some
@@ -25,15 +30,32 @@ class CookbookApi(account: Account, private val client: OkHttpClient) {
     private fun url(vararg segments: String): HttpUrl =
         base.newBuilder().apply { segments.forEach { addPathSegment(it) } }.build()
 
-    private suspend fun getJson(url: HttpUrl) =
-        json.parseToJsonElement(client.fetch(Request.Builder().url(url).get().build()))
+    private suspend fun getJson(url: HttpUrl, cache: Boolean = true): kotlinx.serialization.json.JsonElement {
+        val text = try {
+            client.fetch(Request.Builder().url(url).get().build()).also { body ->
+                if (cache && store != null) {
+                    store.write(url, body)
+                    store.markOnline()
+                }
+            }
+        } catch (e: java.io.IOException) {
+            // No connection (or the server/proxy is down): fall back to the stored answer.
+            val unreachable = e !is HttpException || e.code in 502..504
+            val stored = if (cache && unreachable) store?.read(url) else null
+            stored?.also { store?.markOffline() } ?: throw e
+        }
+        return json.parseToJsonElement(text)
+    }
 
-    private suspend fun getArray(url: HttpUrl): List<JsonObject> =
-        (getJson(url) as? JsonArray)?.filterIsInstance<JsonObject>().orEmpty()
+    private suspend fun getArray(url: HttpUrl, cache: Boolean = true): List<JsonObject> =
+        (getJson(url, cache) as? JsonArray)?.filterIsInstance<JsonObject>().orEmpty()
+
+    /** URL of a full recipe, also used as key of its offline copy. */
+    fun recipeUrl(id: String): HttpUrl = url("api", "v1", "recipes", id)
 
     /** Checks the credentials and that the Cookbook app is installed. */
     suspend fun checkConnection() {
-        getJson(url("api", "version"))
+        getJson(url("api", "version"), cache = false)
     }
 
     suspend fun categories(): List<Category> =
@@ -47,13 +69,13 @@ class CookbookApi(account: Account, private val client: OkHttpClient) {
 
     /** All keywords with their recipe counts (same shape as categories). */
     suspend fun keywords(): List<Category> =
-        getArray(url("api", "v1", "keywords")).map(::categoryFrom)
+        getArray(url("api", "v1", "keywords"), cache = false).map(::categoryFrom)
 
     suspend fun search(query: String): List<RecipeStub> =
-        getArray(url("api", "v1", "search", query)).map(::recipeStubFrom)
+        getArray(url("api", "v1", "search", query), cache = false).map(::recipeStubFrom)
 
     suspend fun recipe(id: String): Recipe =
-        Recipe(getJson(url("api", "v1", "recipes", id)) as JsonObject)
+        Recipe(getJson(recipeUrl(id)) as JsonObject)
 
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 

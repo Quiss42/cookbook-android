@@ -194,4 +194,17 @@
     <string name="update_found_text">Version %1$s is available (installed: %2$s). The download opens in your browser.</string>
     <string name="update_none">You have the latest version (%1$s).</string>
     <string name="update_check_failed">Could not check for updates. Is the phone online?</string>
+
+    <!-- Offline -->
+    <string name="offline_banner">Offline – showing stored recipes</string>
+    <string name="offline_banner_since">Offline – stored state from %1$s</string>
+    <string name="settings_offline">Offline</string>
+    <plurals name="offline_recipe_count">
+        <item quantity="one">%d recipe available offline</item>
+        <item quantity="other">%d recipes available offline</item>
+    </plurals>
+    <string name="offline_last_sync">Last synced %1$s</string>
+    <string name="offline_never">Not synced yet</string>
+    <string name="offline_syncing">Syncing …</string>
+    <string name="offline_sync_now">Sync now</string>
 </resources>

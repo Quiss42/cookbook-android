@@ -229,6 +229,7 @@ private fun RecipeContent(recipe: Recipe, session: Session, viewModel: RecipeVie
         item(key = "image") {
             RecipeImage(
                 url = viewModel.imageUrl("full", recipe.dateModified),
+                fallbackUrl = viewModel.imageUrl("thumb", recipe.dateModified),
                 imageLoader = session.imageLoader,
                 modifier = Modifier.fillMaxWidth().aspectRatio(16f / 10f),
             )

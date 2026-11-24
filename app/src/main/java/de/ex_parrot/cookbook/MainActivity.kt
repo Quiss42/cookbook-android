@@ -15,6 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -158,7 +160,27 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
 
     fun openRecipe(id: String, name: String) = nav.navigate(RecipeRoute(id, name))
 
-    NavHost(navController = nav, startDestination = CategoriesRoute) {
+    // Keep the offline copy up to date (at most every 10 minutes).
+    LaunchedEffect(session) { session.requestSync() }
+
+    val offline by session.offlineStore.offline.collectAsStateWithLifecycle()
+    androidx.compose.foundation.layout.Column {
+    NavHost(
+        navController = nav,
+        startDestination = CategoriesRoute,
+        // The banner below takes the navigation bar space while it is shown.
+        modifier = androidx.compose.ui.Modifier
+            .weight(1f)
+            .then(
+                if (offline) {
+                    androidx.compose.ui.Modifier.consumeWindowInsets(
+                        androidx.compose.foundation.layout.WindowInsets.navigationBars,
+                    )
+                } else {
+                    androidx.compose.ui.Modifier
+                },
+            ),
+    ) {
         composable<CategoriesRoute> {
             CategoriesScreen(
                 session = session,
@@ -257,6 +279,8 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
                 onBack = { nav.popBackStack() },
             )
         }
+    }
+    de.ex_parrot.cookbook.ui.components.OfflineBanner(session)
     }
 }
 

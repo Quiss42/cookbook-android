@@ -12,23 +12,63 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import okhttp3.Request
+import kotlinx.coroutines.launch
 import okio.Path.Companion.toOkioPath
 
 /** Everything that depends on the logged-in account. */
-class Session(context: Context, val account: Account) {
+class Session(private val context: Context, val account: Account) {
     val client = Http.authenticated(account)
-    val repository = CookbookRepository(CookbookApi(account, client))
+    val offlineStore = OfflineStore(context, account)
+    val repository = CookbookRepository(CookbookApi(account, client, offlineStore), offlineStore)
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+    private var syncJob: kotlinx.coroutines.Job? = null
     val files = NextcloudFiles(account, client)
     val imageLoader: ImageLoader = ImageLoader.Builder(context)
         .components { add(OkHttpNetworkFetcherFactory(callFactory = { client })) }
         .diskCache {
             DiskCache.Builder()
                 .directory(context.cacheDir.resolve("images").toOkioPath())
-                .maxSizeBytes(100L * 1024 * 1024)
+                .maxSizeBytes(250L * 1024 * 1024)
                 .build()
         }
         .crossfade(true)
         .build()
+
+    /**
+     * Updates the offline copy in the background. Without [force], it runs at
+     * most every 10 minutes.
+     */
+    fun requestSync(force: Boolean = false) {
+        if (syncJob?.isActive == true) return
+        val last = offlineStore.status.value.lastSync ?: 0
+        if (!force && System.currentTimeMillis() - last < 10 * 60 * 1000) return
+        syncJob = scope.launch {
+            offlineStore.setSyncing(true)
+            try {
+                repository.syncOffline { stub ->
+                    // Keep small pictures for lists and covers on the phone as well.
+                    imageLoader.enqueue(
+                        coil3.request.ImageRequest.Builder(context)
+                            .data(repository.imageUrl(stub.id, version = stub.dateModified))
+                            .memoryCachePolicy(coil3.request.CachePolicy.DISABLED)
+                            .build(),
+                    )
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                // Next attempt on the next start or refresh.
+            } finally {
+                offlineStore.setSyncing(false)
+            }
+        }
+    }
+
+    /** Stops background work and deletes the offline copy (on logout). */
+    fun close(clearOffline: Boolean) {
+        scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
+        if (clearOffline) offlineStore.clear()
+    }
 
     /** Revokes the app password on the server (best effort). */
     suspend fun revokeAppPassword() {
@@ -60,7 +100,11 @@ class SessionManager(context: Context, private val accountStore: AccountStore, s
     suspend fun login(account: Account) = accountStore.save(account)
 
     suspend fun logout() {
-        (state.value as? SessionState.LoggedIn)?.session?.revokeAppPassword()
+        (state.value as? SessionState.LoggedIn)?.session?.let { session ->
+            session.revokeAppPassword()
+            session.close(clearOffline = true)
+            session.imageLoader.diskCache?.clear()
+        }
         accountStore.clear()
     }
 }

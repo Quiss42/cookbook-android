@@ -53,11 +53,14 @@ Updates install over the previous version. The app can also look for new release
 - Import recipes from a web page, also via Android's share menu
 - Cooking timers with exact alarms, countdown notification and timers screen; survive reboots
 - Light/dark theme, wallpaper colours, per-app language (Android 13+)
+- Offline reading: all recipes and thumbnails are kept on the phone and synced in the
+  background (on start at most every 10 minutes, on pull to refresh, or from Settings);
+  without a connection the stored state is shown with a notice
 - Update check against GitHub releases (on start, optional, or manually)
 - English and German; partial translations for 23 more languages taken from the Flutter
   app (`tools/port_translations.py`)
 
-Planned: offline cache.
+Planned: editing while offline.
 
 ## Technical notes
 

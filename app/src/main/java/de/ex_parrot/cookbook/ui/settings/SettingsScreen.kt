@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.ex_parrot.cookbook.BuildConfig
 import de.ex_parrot.cookbook.R
 import de.ex_parrot.cookbook.data.AppSettings
@@ -147,6 +148,34 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.logout), color = MaterialTheme.colorScheme.error) },
                 modifier = Modifier.clickable { confirmLogout = true },
+            )
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionHeader(stringResource(R.string.settings_offline))
+            val offlineStatus by session.offlineStore.status.collectAsStateWithLifecycle()
+            ListItem(
+                headlineContent = {
+                    Text(androidx.compose.ui.res.pluralStringResource(R.plurals.offline_recipe_count, offlineStatus.recipeCount, offlineStatus.recipeCount))
+                },
+                supportingContent = {
+                    Text(
+                        when {
+                            offlineStatus.syncing -> stringResource(R.string.offline_syncing)
+                            offlineStatus.lastSync != null ->
+                                stringResource(R.string.offline_last_sync, de.ex_parrot.cookbook.ui.components.formatDateTime(offlineStatus.lastSync!!))
+                            else -> stringResource(R.string.offline_never)
+                        },
+                    )
+                },
+                trailingContent = {
+                    if (offlineStatus.syncing) {
+                        androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                    } else {
+                        TextButton(onClick = { session.requestSync(force = true) }) {
+                            Text(stringResource(R.string.offline_sync_now))
+                        }
+                    }
+                },
             )
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))

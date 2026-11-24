@@ -4,6 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -81,6 +89,8 @@ fun RecipeImage(
     imageLoader: ImageLoader,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
+    /** Shown if [url] fails, e.g. the stored thumbnail when offline. */
+    fallbackUrl: String? = null,
 ) {
     val placeholder = @Composable {
         Box(
@@ -105,9 +115,52 @@ fun RecipeImage(
         contentScale = contentScale,
         modifier = modifier,
         loading = { placeholder() },
-        error = { placeholder() },
+        error = {
+            if (fallbackUrl != null) {
+                SubcomposeAsyncImage(
+                    model = fallbackUrl,
+                    imageLoader = imageLoader,
+                    contentDescription = null,
+                    contentScale = contentScale,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = { placeholder() },
+                    error = { placeholder() },
+                )
+            } else {
+                placeholder()
+            }
+        },
     )
 }
+
+/** Shown while the data comes from the phone because the server is unreachable. */
+@Composable
+fun OfflineBanner(session: de.ex_parrot.cookbook.data.Session, modifier: Modifier = Modifier) {
+    val offline by session.offlineStore.offline.collectAsStateWithLifecycle()
+    val status by session.offlineStore.status.collectAsStateWithLifecycle()
+    if (!offline) return
+    Row(
+        modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(Icons.Outlined.CloudOff, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+        Text(
+            status.lastSync?.let { stringResource(R.string.offline_banner_since, formatDateTime(it)) }
+                ?: stringResource(R.string.offline_banner),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
+    }
+}
+
+fun formatDateTime(millis: Long): String =
+    java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
+        .format(java.util.Date(millis))
 
 /** Technical details, shown small, to help with bug reports. */
 @Composable
