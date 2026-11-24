@@ -61,8 +61,7 @@ Updates install over the previous version. The app can also look for new release
   server is reachable. If a recipe was changed on the server meanwhile (detected via
   `dateModified`), the app asks: my version, server version or keep both
 - Update check against GitHub releases (on start, optional, or manually)
-- English and German; partial translations for 23 more languages taken from the Flutter
-  app (`tools/port_translations.py`)
+- English and German
 
 ## Technical notes
 
@@ -100,9 +99,6 @@ version 3 of the License, or (at your option) any later version. See [LICENSE](L
   [Teifun2/nextcloud-cookbook-flutter](https://github.com/Teifun2/nextcloud-cookbook-flutter)
   (CC0 1.0). The cutlery symbol appears to be the "cutlery" glyph of Font Awesome 4
   (SIL Open Font License 1.1), whose terms are not changed by this project's license.
-- **Translations** other than English and German (`app/src/main/res/values-*/strings.xml`):
-  taken from the same Flutter app (CC0 1.0), where they were contributed through
-  Nextcloud's Transifex project.
 - **Libraries** used by the app (AndroidX, Jetpack Compose, OkHttp, Coil, kotlinx) are not
   part of this repository; they are licensed under the Apache License 2.0, which is
   compatible with GPL-3.0.
