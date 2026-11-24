@@ -19,10 +19,15 @@ import okio.Path.Companion.toOkioPath
 class Session(private val context: Context, val account: Account) {
     val client = Http.authenticated(account)
     val offlineStore = OfflineStore(context, account)
-    val repository = CookbookRepository(CookbookApi(account, client, offlineStore), offlineStore)
-    init {
-        repository.onImagesOutdated = ::forgetImages
+    val files = NextcloudFiles(account, client)
+    val repository = CookbookRepository(CookbookApi(account, client, offlineStore), offlineStore, files)
+    /** Uploads queued changes as soon as Android reports a connection. */
+    private val networkCallback = object : android.net.ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: android.net.Network) {
+            requestSync()
+        }
     }
+
 
     /** Removes a recipe's stored pictures from memory and disk so they are loaded again. */
     fun forgetImages(recipeId: String) {
@@ -37,7 +42,6 @@ class Session(private val context: Context, val account: Account) {
 
     private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
     private var syncJob: kotlinx.coroutines.Job? = null
-    val files = NextcloudFiles(account, client)
     val imageLoader: ImageLoader = ImageLoader.Builder(context)
         .components { add(OkHttpNetworkFetcherFactory(callFactory = { client })) }
         .diskCache {
@@ -56,10 +60,13 @@ class Session(private val context: Context, val account: Account) {
     fun requestSync(force: Boolean = false) {
         if (syncJob?.isActive == true) return
         val last = offlineStore.status.value.lastSync ?: 0
-        if (!force && System.currentTimeMillis() - last < 10 * 60 * 1000) return
+        val hasPending = offlineStore.pending.changes.value.any { !it.conflict }
+        if (!force && !hasPending && System.currentTimeMillis() - last < 10 * 60 * 1000) return
         syncJob = scope.launch {
             offlineStore.setSyncing(true)
             try {
+                // Upload offline changes first, then refresh the offline copy.
+                repository.uploadPending()
                 repository.syncOffline { stub ->
                     // Keep small pictures for lists and covers on the phone as well.
                     imageLoader.enqueue(
@@ -81,8 +88,21 @@ class Session(private val context: Context, val account: Account) {
 
     /** Stops background work and deletes the offline copy (on logout). */
     fun close(clearOffline: Boolean) {
+        runCatching {
+            context.getSystemService(android.net.ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
+        }
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         if (clearOffline) offlineStore.clear()
+    }
+
+    // Last, so that everything used by the callbacks is initialized.
+    init {
+        repository.onImagesOutdated = ::forgetImages
+        repository.onChangeQueued = { requestSync(force = true) }
+        runCatching {
+            context.getSystemService(android.net.ConnectivityManager::class.java)
+                .registerDefaultNetworkCallback(networkCallback)
+        }
     }
 
     /** Revokes the app password on the server (best effort). */

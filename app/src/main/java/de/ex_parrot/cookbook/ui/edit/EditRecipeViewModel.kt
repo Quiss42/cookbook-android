@@ -72,7 +72,8 @@ data class HiddenEntry(
 sealed interface SaveState {
     data object Idle : SaveState
     data object Saving : SaveState
-    data class Saved(val id: String) : SaveState
+    /** [queued]: no connection, the change will be uploaded later. */
+    data class Saved(val id: String, val queued: Boolean = false) : SaveState
     data class Failed(val error: Throwable) : SaveState
 }
 
@@ -91,6 +92,8 @@ class EditRecipeViewModel(
         private set
 
     private var original: JsonObject = JsonObject(emptyMap())
+    private var originalModified: String? = null
+    private var originalCategory: String? = null
     private var snapshot: String = ""
 
     var name by mutableStateOf("")
@@ -166,6 +169,8 @@ class EditRecipeViewModel(
 
     private fun fill(recipe: Recipe) {
         original = recipe.raw
+        originalModified = recipe.dateModified
+        originalCategory = recipe.category
         name = recipe.name
         description = recipe.description
         category = recipe.category
@@ -312,33 +317,31 @@ class EditRecipeViewModel(
         if (!canSave) return
         viewModelScope.launch {
             saveState = SaveState.Saving
-            var tempPath: String? = null
             saveState = try {
-                val image = when (val selection = imageSelection) {
+                val selection = imageSelection
+                val image = when (selection) {
                     ImageSelection.Keep -> originalImage
                     ImageSelection.Removed -> ""
                     is ImageSelection.Cloud -> selection.path
-                    is ImageSelection.Local -> {
-                        // Cookbook copies files given by path into the recipe folder,
-                        // so a temporary upload is enough.
-                        val path = "/.cookbook-upload-${System.currentTimeMillis()}.jpg"
-                        files.upload(path, selection.file.readBytes(), "image/jpeg")
-                        tempPath = path
-                        path
-                    }
+                    // The photo is uploaded by the repository (now or, offline, later).
+                    is ImageSelection.Local -> originalImage
                 }
                 val json = JsonObject(toJson() + ("image" to JsonPrimitive(image)))
-                val id = if (recipeId == null) repository.createRecipe(json) else repository.updateRecipe(recipeId, json)
+                val result = repository.saveRecipe(
+                    id = recipeId,
+                    recipe = json,
+                    localImage = (selection as? ImageSelection.Local)?.file,
+                    baseModified = originalModified,
+                    fromCategory = originalCategory,
+                )
                 originalImage = image
                 imageSelection = ImageSelection.Keep
                 snapshot = currentState()
-                SaveState.Saved(id)
+                SaveState.Saved(result.id, result.queued)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Throwable) {
                 SaveState.Failed(e)
-            } finally {
-                tempPath?.let { path -> runCatching { files.delete(path) } }
             }
         }
     }

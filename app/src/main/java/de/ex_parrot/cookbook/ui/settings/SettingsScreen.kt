@@ -16,6 +16,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -178,6 +179,40 @@ fun SettingsScreen(
                 },
             )
 
+            val pendingChanges by session.offlineStore.pending.changes.collectAsStateWithLifecycle()
+            if (pendingChanges.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.pending_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+                )
+                pendingChanges.forEach { change ->
+                    ListItem(
+                        headlineContent = { Text(change.name.ifBlank { "–" }) },
+                        supportingContent = {
+                            val kind = stringResource(
+                                when (change.type) {
+                                    de.ex_parrot.cookbook.data.PendingChange.Type.CREATE -> R.string.pending_create
+                                    de.ex_parrot.cookbook.data.PendingChange.Type.UPDATE -> R.string.pending_update
+                                    de.ex_parrot.cookbook.data.PendingChange.Type.DELETE -> R.string.pending_delete
+                                },
+                            )
+                            val state = when {
+                                change.conflict -> stringResource(R.string.pending_conflict)
+                                change.error != null -> stringResource(R.string.pending_error, change.error)
+                                else -> null
+                            }
+                            Text(listOfNotNull(kind, state).joinToString(" · "))
+                        },
+                        trailingContent = {
+                            IconButton(onClick = { session.repository.discardPending(change) }) {
+                                Icon(androidx.compose.material.icons.Icons.Outlined.Delete, stringResource(R.string.pending_discard))
+                            }
+                        },
+                    )
+                }
+            }
+
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionHeader(stringResource(R.string.settings_updates))
             ListItem(
@@ -237,7 +272,13 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { confirmLogout = false },
             title = { Text(stringResource(R.string.logout)) },
-            text = { Text(stringResource(R.string.logout_confirm)) },
+            text = {
+                val waiting = session.offlineStore.pending.changes.value.size
+                Text(
+                    stringResource(R.string.logout_confirm) +
+                        if (waiting > 0) "\n\n" + androidx.compose.ui.res.pluralStringResource(R.plurals.logout_pending_lost, waiting, waiting) else "",
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { confirmLogout = false; onLogout() }) { Text(stringResource(R.string.logout)) }
             },

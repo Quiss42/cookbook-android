@@ -35,10 +35,15 @@ class RecipeViewModel(
         viewModelScope.launch { repository.changes.drop(1).collect { if (!deleted) load(refresh = false) } }
     }
 
+    /** True if the deletion was queued because there is no connection. */
+    var deletionQueued by mutableStateOf(false)
+        private set
+
     fun delete() {
+        val recipe = (_state.value as? Loadable.Ready)?.value ?: return
         viewModelScope.launch {
             try {
-                repository.deleteRecipe(recipeId)
+                deletionQueued = repository.deleteRecipe(recipeId, recipe.name, recipe.category, recipe.dateModified)
                 deleted = true
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -69,5 +74,7 @@ class RecipeViewModel(
         if (!list.remove(index)) list.add(index)
     }
 
-    fun imageUrl(size: String) = repository.imageUrl(recipeId, size)
+    /** A photo waiting for upload is shown from the phone. */
+    fun imageUrl(size: String): String =
+        repository.localImage(recipeId)?.let { "file://${it.absolutePath}" } ?: repository.imageUrl(recipeId, size)
 }

@@ -193,4 +193,35 @@
     <string name="offline_never">Noch nicht abgeglichen</string>
     <string name="offline_syncing">Wird abgeglichen …</string>
     <string name="offline_sync_now">Jetzt abgleichen</string>
+
+    <string name="offline_saved">Auf dem Handy gespeichert – wird hochgeladen, sobald der Server erreichbar ist.</string>
+    <string name="offline_deleted">Löschen vorgemerkt – wird ausgeführt, sobald der Server erreichbar ist.</string>
+    <plurals name="pending_waiting">
+        <item quantity="one">%d Änderung wartet auf Upload</item>
+        <item quantity="other">%d Änderungen warten auf Upload</item>
+    </plurals>
+    <plurals name="pending_uploading">
+        <item quantity="one">%d Änderung wird hochgeladen …</item>
+        <item quantity="other">%d Änderungen werden hochgeladen …</item>
+    </plurals>
+    <string name="pending_title">Noch nicht hochgeladen</string>
+    <string name="pending_create">Neues Rezept</string>
+    <string name="pending_update">Geändert</string>
+    <string name="pending_delete">Gelöscht</string>
+    <string name="pending_conflict">Konflikt – Entscheidung nötig</string>
+    <string name="pending_error">Fehler: %1$s</string>
+    <string name="pending_discard">Änderung verwerfen</string>
+    <plurals name="logout_pending_lost">
+        <item quantity="one">%d Änderung ist noch nicht hochgeladen und geht verloren.</item>
+        <item quantity="other">%d Änderungen sind noch nicht hochgeladen und gehen verloren.</item>
+    </plurals>
+    <string name="conflict_title">Konflikt: „%1$s“</string>
+    <string name="conflict_text_update">Dieses Rezept wurde auch auf dem Server geändert, während du es offline bearbeitet hast. Welche Version soll bleiben?</string>
+    <string name="conflict_text_delete">Du hast dieses Rezept offline gelöscht, es wurde aber inzwischen auf dem Server geändert.</string>
+    <string name="conflict_mine">Meine Version</string>
+    <string name="conflict_server">Server-Version</string>
+    <string name="conflict_both">Beide behalten</string>
+    <string name="conflict_delete_anyway">Trotzdem löschen</string>
+    <string name="conflict_keep_recipe">Rezept behalten</string>
+    <string name="conflict_failed">Konflikt konnte nicht gelöst werden. Ist der Server erreichbar?</string>
 </resources>

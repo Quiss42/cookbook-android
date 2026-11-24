@@ -77,6 +77,10 @@ class CookbookApi(
     suspend fun recipe(id: String): Recipe =
         Recipe(getJson(recipeUrl(id)) as JsonObject)
 
+    /** The recipe straight from the server, never the offline copy (for conflict checks). */
+    suspend fun recipeFresh(id: String): Recipe =
+        Recipe(getJson(recipeUrl(id), cache = false) as JsonObject)
+
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     private suspend fun send(method: String, url: HttpUrl, body: JsonObject?): String {

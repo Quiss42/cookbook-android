@@ -30,6 +30,9 @@ class OfflineStore(context: Context, account: Account) {
     private val indexFile = File(dir, "index.json")
     private val lastSyncFile = File(dir, "last_sync")
 
+    /** Changes made offline, waiting for upload. */
+    val pending = PendingStore(File(dir, "pending.json"), File(dir, "pending_images"))
+
     private val _offline = MutableStateFlow(false)
     /** True while the shown data comes from the phone because the server is unreachable. */
     val offline: StateFlow<Boolean> = _offline

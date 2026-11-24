@@ -163,7 +163,27 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
     // Keep the offline copy up to date (at most every 10 minutes).
     LaunchedEffect(session) { session.requestSync() }
 
-    val offline by session.offlineStore.offline.collectAsStateWithLifecycle()
+    val offlineNow by session.offlineStore.offline.collectAsStateWithLifecycle()
+    val pendingChanges by session.offlineStore.pending.changes.collectAsStateWithLifecycle()
+    val offline = offlineNow || pendingChanges.isNotEmpty()
+
+    // Offline changes that clash with changes on the server: ask the user.
+    pendingChanges.firstOrNull { it.conflict }?.let { change ->
+        ConflictDialog(
+            change = change,
+            onChoice = { choice ->
+                container.scope.launch {
+                    try {
+                        session.repository.resolveConflict(change, choice)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        Toast.makeText(context, R.string.conflict_failed, Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+        )
+    }
     androidx.compose.foundation.layout.Column {
     NavHost(
         navController = nav,
@@ -302,6 +322,43 @@ private fun UpdateDialog(info: UpdateInfo, onInstall: () -> Unit, onDismiss: () 
         dismissButton = {
             androidx.compose.material3.TextButton(onClick = onDismiss) {
                 androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.no))
+            }
+        },
+    )
+}
+
+@Composable
+private fun ConflictDialog(
+    change: de.ex_parrot.cookbook.data.PendingChange,
+    onChoice: (de.ex_parrot.cookbook.data.ConflictChoice) -> Unit,
+) {
+    val isDelete = change.type == de.ex_parrot.cookbook.data.PendingChange.Type.DELETE
+    androidx.compose.material3.AlertDialog(
+        // Must be decided; dismissing just shows it again later.
+        onDismissRequest = {},
+        title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.conflict_title, change.name)) },
+        text = {
+            androidx.compose.material3.Text(
+                androidx.compose.ui.res.stringResource(if (isDelete) R.string.conflict_text_delete else R.string.conflict_text_update),
+            )
+        },
+        confirmButton = {
+            androidx.compose.foundation.layout.Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
+                androidx.compose.material3.TextButton(onClick = { onChoice(de.ex_parrot.cookbook.data.ConflictChoice.MINE) }) {
+                    androidx.compose.material3.Text(
+                        androidx.compose.ui.res.stringResource(if (isDelete) R.string.conflict_delete_anyway else R.string.conflict_mine),
+                    )
+                }
+                androidx.compose.material3.TextButton(onClick = { onChoice(de.ex_parrot.cookbook.data.ConflictChoice.SERVER) }) {
+                    androidx.compose.material3.Text(
+                        androidx.compose.ui.res.stringResource(if (isDelete) R.string.conflict_keep_recipe else R.string.conflict_server),
+                    )
+                }
+                if (!isDelete) {
+                    androidx.compose.material3.TextButton(onClick = { onChoice(de.ex_parrot.cookbook.data.ConflictChoice.BOTH) }) {
+                        androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.conflict_both))
+                    }
+                }
             }
         },
     )

@@ -73,8 +73,14 @@ fun EditRecipeScreen(
 
     BackHandler(onBack = tryClose)
 
+    val context = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(viewModel.saveState) {
-        (viewModel.saveState as? SaveState.Saved)?.let { onSaved(it.id, viewModel.name.trim()) }
+        (viewModel.saveState as? SaveState.Saved)?.let {
+            if (it.queued) {
+                android.widget.Toast.makeText(context, R.string.offline_saved, android.widget.Toast.LENGTH_LONG).show()
+            }
+            onSaved(it.id, viewModel.name.trim())
+        }
     }
 
     Scaffold(

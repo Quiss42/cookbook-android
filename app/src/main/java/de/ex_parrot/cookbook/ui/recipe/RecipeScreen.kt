@@ -96,7 +96,15 @@ fun RecipeScreen(
     var confirmDelete by remember { mutableStateOf(false) }
     var timerFor by remember { mutableStateOf<Recipe?>(null) }
 
-    LaunchedEffect(viewModel.deleted) { if (viewModel.deleted) onBack() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(viewModel.deleted) {
+        if (viewModel.deleted) {
+            if (viewModel.deletionQueued) {
+                android.widget.Toast.makeText(context, R.string.offline_deleted, android.widget.Toast.LENGTH_LONG).show()
+            }
+            onBack()
+        }
+    }
 
     val view = LocalView.current
     DisposableEffect(keepScreenOn) {

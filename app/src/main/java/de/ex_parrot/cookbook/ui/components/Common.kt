@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.fillMaxSize
@@ -138,7 +139,9 @@ fun RecipeImage(
 fun OfflineBanner(session: de.ex_parrot.cookbook.data.Session, modifier: Modifier = Modifier) {
     val offline by session.offlineStore.offline.collectAsStateWithLifecycle()
     val status by session.offlineStore.status.collectAsStateWithLifecycle()
-    if (!offline) return
+    val pendingChanges by session.offlineStore.pending.changes.collectAsStateWithLifecycle()
+    val pendingCount = pendingChanges.size
+    if (!offline && pendingCount == 0) return
     Row(
         modifier
             .fillMaxWidth()
@@ -148,10 +151,30 @@ fun OfflineBanner(session: de.ex_parrot.cookbook.data.Session, modifier: Modifie
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(Icons.Outlined.CloudOff, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+        Icon(
+            if (offline) Icons.Outlined.CloudOff else Icons.Outlined.CloudUpload,
+            null,
+            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
+        val parts = buildList {
+            if (offline) {
+                add(
+                    status.lastSync?.let { stringResource(R.string.offline_banner_since, formatDateTime(it)) }
+                        ?: stringResource(R.string.offline_banner),
+                )
+            }
+            if (pendingCount > 0) {
+                add(
+                    if (!offline && status.syncing) {
+                        androidx.compose.ui.res.pluralStringResource(R.plurals.pending_uploading, pendingCount, pendingCount)
+                    } else {
+                        androidx.compose.ui.res.pluralStringResource(R.plurals.pending_waiting, pendingCount, pendingCount)
+                    },
+                )
+            }
+        }
         Text(
-            status.lastSync?.let { stringResource(R.string.offline_banner_since, formatDateTime(it)) }
-                ?: stringResource(R.string.offline_banner),
+            parts.joinToString(" · "),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onTertiaryContainer,
         )

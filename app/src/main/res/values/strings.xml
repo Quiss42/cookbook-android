@@ -207,4 +207,36 @@
     <string name="offline_never">Not synced yet</string>
     <string name="offline_syncing">Syncing …</string>
     <string name="offline_sync_now">Sync now</string>
+
+    <!-- Offline editing -->
+    <string name="offline_saved">Saved on the phone – will be uploaded as soon as the server is reachable.</string>
+    <string name="offline_deleted">Deletion noted – will be done as soon as the server is reachable.</string>
+    <plurals name="pending_waiting">
+        <item quantity="one">%d change waiting for upload</item>
+        <item quantity="other">%d changes waiting for upload</item>
+    </plurals>
+    <plurals name="pending_uploading">
+        <item quantity="one">Uploading %d change …</item>
+        <item quantity="other">Uploading %d changes …</item>
+    </plurals>
+    <string name="pending_title">Not uploaded yet</string>
+    <string name="pending_create">New recipe</string>
+    <string name="pending_update">Changed</string>
+    <string name="pending_delete">Deleted</string>
+    <string name="pending_conflict">Conflict – decision needed</string>
+    <string name="pending_error">Error: %1$s</string>
+    <string name="pending_discard">Discard change</string>
+    <plurals name="logout_pending_lost">
+        <item quantity="one">%d change has not been uploaded yet and will be lost.</item>
+        <item quantity="other">%d changes have not been uploaded yet and will be lost.</item>
+    </plurals>
+    <string name="conflict_title">Conflict: “%1$s”</string>
+    <string name="conflict_text_update">This recipe was also changed on the server while you edited it offline. Which version should be kept?</string>
+    <string name="conflict_text_delete">You deleted this recipe offline, but it was changed on the server meanwhile.</string>
+    <string name="conflict_mine">My version</string>
+    <string name="conflict_server">Server version</string>
+    <string name="conflict_both">Keep both</string>
+    <string name="conflict_delete_anyway">Delete anyway</string>
+    <string name="conflict_keep_recipe">Keep recipe</string>
+    <string name="conflict_failed">Could not resolve the conflict. Is the server reachable?</string>
 </resources>
