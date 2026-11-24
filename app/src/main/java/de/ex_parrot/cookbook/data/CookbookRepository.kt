@@ -44,6 +44,13 @@ class CookbookRepository(
     /** Called after a change was queued, so the session can try to upload it. */
     var onChangeQueued: () -> Unit = {}
 
+    /** Downloads a photo from the web on the phone and prepares it (set by the session). */
+    var downloadImage: suspend (url: String) -> File = { throw NoImageException() }
+
+    private val _notices = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 8)
+    /** Messages about background uploads, e.g. a photo that could not be downloaded. */
+    val notices: kotlinx.coroutines.flow.SharedFlow<String> = _notices
+
     private val _changes = MutableStateFlow(0)
     /** Incremented whenever recipes are created, changed or deleted. */
     val changes: StateFlow<Int> = _changes
@@ -73,22 +80,26 @@ class CookbookRepository(
         localImage: File?,
         baseModified: String?,
         fromCategory: String?,
+        /** Web address of a photo still to be downloaded by the phone. */
+        webImage: String? = null,
     ): SaveResult {
         val queue = pending
         val target = id?.let(::resolveId)
         // Keep the order: if this recipe already has queued changes, queue this one too.
         if (queue != null && target != null && (target.startsWith(LOCAL_RECIPE_PREFIX) || queue.forRecipe(target) != null)) {
-            return enqueueSave(target, recipe, localImage, baseModified, fromCategory)
+            return enqueueSave(target, recipe, localImage, baseModified, fromCategory, webImage)
         }
         return try {
-            val savedId = saveOnline(target, recipe, localImage?.absolutePath)
+            // A web photo is fetched now; if that fails for lack of connection, everything is queued.
+            val photo = localImage ?: webImage?.let { downloadImage(it) }
+            val savedId = saveOnline(target, recipe, photo?.absolutePath)
             invalidate(savedId)
             SaveResult(savedId, queued = false)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Throwable) {
             if (queue == null || !isUnreachable(e)) throw e
-            enqueueSave(target, recipe, localImage, baseModified, fromCategory)
+            enqueueSave(target, recipe, localImage, baseModified, fromCategory, webImage)
         }
     }
 
@@ -116,9 +127,11 @@ class CookbookRepository(
         localImage: File?,
         baseModified: String?,
         fromCategory: String?,
+        webImage: String? = null,
     ): SaveResult {
         val queue = pending!!
         val image = localImage?.let(queue::keepImage)
+        val newPhoto = image != null || webImage != null
         val name = recipe.string("name")
         val existing = id?.let(queue::forRecipe)
         val resultId: String
@@ -126,16 +139,28 @@ class CookbookRepository(
             id == null -> {
                 resultId = "$LOCAL_RECIPE_PREFIX${System.currentTimeMillis()}"
                 queue.update {
-                    it + PendingChange(queue.nextId(), PendingChange.Type.CREATE, resultId, name, recipe, imageFile = image)
+                    it + PendingChange(
+                        queue.nextId(), PendingChange.Type.CREATE, resultId, name, recipe,
+                        imageFile = image, imageWebUrl = webImage,
+                    )
                 }
             }
             existing != null && existing.type != PendingChange.Type.DELETE -> {
                 resultId = id
                 // Merge into the queued change; keep its original base for the conflict check.
-                existing.imageFile?.takeIf { image != null }?.let { File(it).delete() }
+                existing.imageFile?.takeIf { newPhoto }?.let { File(it).delete() }
                 queue.update { list ->
                     list.map { c ->
-                        if (c.id == existing.id) c.copy(name = name, recipe = recipe, imageFile = image ?: c.imageFile, error = null) else c
+                        if (c.id == existing.id) {
+                            c.copy(
+                                name = name,
+                                recipe = recipe,
+                                // A newly chosen photo replaces the queued one.
+                                imageFile = if (newPhoto) image else c.imageFile,
+                                imageWebUrl = if (newPhoto) webImage else c.imageWebUrl,
+                                error = null,
+                            )
+                        } else c
                     }
                 }
             }
@@ -144,7 +169,8 @@ class CookbookRepository(
                 queue.update {
                     it + PendingChange(
                         queue.nextId(), PendingChange.Type.UPDATE, id, name, recipe,
-                        imageFile = image, baseModified = baseModified, fromCategory = fromCategory,
+                        imageFile = image, imageWebUrl = webImage,
+                        baseModified = baseModified, fromCategory = fromCategory,
                     )
                 }
             }
@@ -224,11 +250,30 @@ class CookbookRepository(
         }
     }
 
+    /**
+     * The photo to upload with [change]: the stored file, or the web photo
+     * downloaded now. A web photo that cannot be found is skipped (with a
+     * notice) so the rest of the change still gets uploaded.
+     */
+    private suspend fun photoFor(change: PendingChange): String? {
+        change.imageFile?.let { return it }
+        val url = change.imageWebUrl ?: return null
+        return try {
+            downloadImage(url).absolutePath
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            if (isUnreachable(e)) throw e
+            _notices.tryEmit("${change.name}: $url")
+            null
+        }
+    }
+
     private suspend fun upload(change: PendingChange) {
         val queue = pending!!
         when (change.type) {
             PendingChange.Type.CREATE -> {
-                val newId = saveOnline(null, change.recipe!!, change.imageFile)
+                val newId = saveOnline(null, change.recipe!!, photoFor(change))
                 uploadedIds[change.recipeId] = newId
                 queue.remove(change)
                 invalidate(newId)
@@ -238,7 +283,7 @@ class CookbookRepository(
                 when {
                     // Deleted on the server meanwhile: keep the edit as a new recipe.
                     server == null -> {
-                        val newId = saveOnline(null, change.recipe!!, change.imageFile)
+                        val newId = saveOnline(null, change.recipe!!, photoFor(change))
                         uploadedIds[change.recipeId] = newId
                         queue.remove(change)
                         invalidate(change.recipeId)
@@ -246,7 +291,7 @@ class CookbookRepository(
                     }
                     changedOnServer(change, server) -> markConflict(change)
                     else -> {
-                        saveOnline(change.recipeId, change.recipe!!, change.imageFile)
+                        saveOnline(change.recipeId, change.recipe!!, photoFor(change))
                         queue.remove(change)
                         invalidate(change.recipeId)
                     }
@@ -300,14 +345,14 @@ class CookbookRepository(
                         if (e.code != 404) throw e
                     }
                 } else {
-                    saveOnline(change.recipeId, change.recipe!!, change.imageFile)
+                    saveOnline(change.recipeId, change.recipe!!, photoFor(change))
                 }
                 queue.remove(change)
             }
             ConflictChoice.BOTH -> {
                 if (change.type == PendingChange.Type.UPDATE) {
                     val copy = JsonObject(change.recipe!! + ("name" to JsonPrimitive("${change.name} (Handy)")))
-                    invalidate(saveOnline(null, copy, change.imageFile))
+                    invalidate(saveOnline(null, copy, photoFor(change)))
                 }
                 queue.remove(change)
             }

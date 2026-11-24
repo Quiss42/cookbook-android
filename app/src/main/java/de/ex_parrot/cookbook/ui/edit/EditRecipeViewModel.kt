@@ -38,6 +38,8 @@ sealed interface ImageSelection {
     data class Cloud(val path: String, val fileId: String?) : ImageSelection
     /** A prepared JPEG on the phone; uploaded temporarily when saving. */
     data class Local(val file: File) : ImageSelection
+    /** A web photo that could not be downloaded yet (no connection); fetched when saving/uploading. */
+    data class Web(val url: String) : ImageSelection
 }
 
 /** Hours and minutes as edited in two text fields. */
@@ -219,10 +221,26 @@ class EditRecipeViewModel(
         imageSelection = ImageSelection.Keep
     }
 
-    /** Downloads the image (or a page's preview image) on the phone. */
-    fun useWebImage(url: String) = prepareImage {
-        val bytes = ImageTools.download(Http.client(false), url.trim())
-        ImageTools.prepare(appContext, bytes)
+    /** Downloads the image (or a page's preview image) on the phone; offline, the address is remembered. */
+    fun useWebImage(url: String) {
+        val address = url.trim()
+        viewModelScope.launch {
+            imageBusy = true
+            imageError = null
+            try {
+                imageSelection = ImageSelection.Local(ImageTools.prepare(appContext, ImageTools.download(Http.client(false), address)))
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                if (de.ex_parrot.cookbook.data.isUnreachable(e)) {
+                    imageSelection = ImageSelection.Web(address)
+                } else {
+                    imageError = e
+                }
+            } finally {
+                imageBusy = false
+            }
+        }
     }
 
     /** Uses a photo from the camera or gallery. */
@@ -325,6 +343,7 @@ class EditRecipeViewModel(
                     is ImageSelection.Cloud -> selection.path
                     // The photo is uploaded by the repository (now or, offline, later).
                     is ImageSelection.Local -> originalImage
+                    is ImageSelection.Web -> originalImage
                 }
                 val json = JsonObject(toJson() + ("image" to JsonPrimitive(image)))
                 val result = repository.saveRecipe(
@@ -333,6 +352,7 @@ class EditRecipeViewModel(
                     localImage = (selection as? ImageSelection.Local)?.file,
                     baseModified = originalModified,
                     fromCategory = originalCategory,
+                    webImage = (selection as? ImageSelection.Web)?.url,
                 )
                 originalImage = image
                 imageSelection = ImageSelection.Keep

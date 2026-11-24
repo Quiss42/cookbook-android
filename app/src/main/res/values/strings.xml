@@ -239,4 +239,7 @@
     <string name="conflict_delete_anyway">Delete anyway</string>
     <string name="conflict_keep_recipe">Keep recipe</string>
     <string name="conflict_failed">Could not resolve the conflict. Is the server reachable?</string>
+
+    <string name="image_web_later">No connection – the photo will be downloaded as soon as there is one: %1$s</string>
+    <string name="upload_image_missing">Photo could not be downloaded, recipe uploaded without it (%1$s)</string>
 </resources>

@@ -117,6 +117,7 @@ fun ImageSection(vm: EditRecipeViewModel, imageLoader: ImageLoader) {
                     imageLoader,
                     Modifier.fillMaxSize(),
                 )
+                is ImageSelection.Web -> RecipeImage(null, imageLoader, Modifier.fillMaxSize())
                 is ImageSelection.Local -> AsyncImage(
                     model = selection.file,
                     imageLoader = imageLoader,
@@ -151,6 +152,14 @@ fun ImageSection(vm: EditRecipeViewModel, imageLoader: ImageLoader) {
             if (vm.imageSelection != ImageSelection.Removed && (vm.hasOriginalImage || vm.imageSelection != ImageSelection.Keep)) {
                 ImageChip(Icons.Outlined.Delete, stringResource(R.string.image_remove)) { vm.removeImage() }
             }
+        }
+
+        (vm.imageSelection as? ImageSelection.Web)?.let { web ->
+            Text(
+                stringResource(R.string.image_web_later, web.url),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         vm.imageError?.let { error ->

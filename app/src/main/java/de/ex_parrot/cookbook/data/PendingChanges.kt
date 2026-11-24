@@ -28,6 +28,8 @@ data class PendingChange(
     val recipe: JsonObject? = null,
     /** Photo from camera/gallery to upload with the recipe. */
     val imageFile: String? = null,
+    /** Web address of a photo the phone downloads when uploading (chosen while offline). */
+    val imageWebUrl: String? = null,
     /** dateModified of the recipe when editing started (conflict check). */
     val baseModified: String? = null,
     /** Category before the change (for adjusting category counts). */

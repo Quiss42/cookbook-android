@@ -224,4 +224,7 @@
     <string name="conflict_delete_anyway">Trotzdem löschen</string>
     <string name="conflict_keep_recipe">Rezept behalten</string>
     <string name="conflict_failed">Konflikt konnte nicht gelöst werden. Ist der Server erreichbar?</string>
+
+    <string name="image_web_later">Keine Verbindung – das Foto wird heruntergeladen, sobald eine besteht: %1$s</string>
+    <string name="upload_image_missing">Foto konnte nicht geladen werden, Rezept ohne Foto hochgeladen (%1$s)</string>
 </resources>

@@ -167,6 +167,12 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
     val pendingChanges by session.offlineStore.pending.changes.collectAsStateWithLifecycle()
     val offline = offlineNow || pendingChanges.isNotEmpty()
 
+    LaunchedEffect(session) {
+        session.repository.notices.collect { detail ->
+            Toast.makeText(context, context.getString(R.string.upload_image_missing, detail), Toast.LENGTH_LONG).show()
+        }
+    }
+
     // Offline changes that clash with changes on the server: ask the user.
     pendingChanges.firstOrNull { it.conflict }?.let { change ->
         ConflictDialog(

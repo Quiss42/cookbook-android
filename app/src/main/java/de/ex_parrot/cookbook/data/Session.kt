@@ -99,6 +99,7 @@ class Session(private val context: Context, val account: Account) {
     init {
         repository.onImagesOutdated = ::forgetImages
         repository.onChangeQueued = { requestSync(force = true) }
+        repository.downloadImage = { url -> ImageTools.prepare(context, ImageTools.download(Http.client(false), url)) }
         runCatching {
             context.getSystemService(android.net.ConnectivityManager::class.java)
                 .registerDefaultNetworkCallback(networkCallback)
