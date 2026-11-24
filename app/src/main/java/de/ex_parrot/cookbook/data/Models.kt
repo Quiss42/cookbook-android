@@ -66,10 +66,17 @@ val EDITED_RECIPE_KEYS = setOf(
     "prepTime", "cookTime", "totalTime", "tool", "recipeIngredient", "recipeInstructions", "nutrition",
 )
 
-/** Fields maintained by the Cookbook server; never offered for deletion. */
+/**
+ * Fields maintained by the Cookbook server; never offered for deletion.
+ * "printImage" is not part of the recipe at all: the server adds the user's
+ * "print image" setting to every recipe it returns.
+ */
 val SERVER_RECIPE_KEYS = setOf(
-    "@context", "@type", "id", "recipe_id", "dateCreated", "dateModified", "imageUrl", "imagePlaceholderUrl",
+    "@context", "@type", "id", "recipe_id", "dateCreated", "dateModified", "imageUrl", "imagePlaceholderUrl", "printImage",
 )
+
+/** Kept with the nutrition values (always "1 serving", since they are per serving). */
+const val SERVING_SIZE_KEY = "servingSize"
 
 internal fun JsonObject.string(key: String): String =
     (this[key] as? JsonPrimitive)?.contentOrNull.orEmpty()

@@ -182,4 +182,5 @@
     <string name="edit_hidden_delete_all">Delete all</string>
     <string name="edit_hidden_delete_all_title">Delete all other values?</string>
     <string name="edit_hidden_delete_all_text">%1$d values will be removed from the recipe when you save.</string>
+    <string name="nutrition_serving_size_value">1 serving</string>
 </resources>

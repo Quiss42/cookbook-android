@@ -16,6 +16,7 @@ import de.ex_parrot.cookbook.data.ImageTools
 import de.ex_parrot.cookbook.data.NextcloudFiles
 import de.ex_parrot.cookbook.data.EDITED_RECIPE_KEYS
 import de.ex_parrot.cookbook.data.SERVER_RECIPE_KEYS
+import de.ex_parrot.cookbook.data.SERVING_SIZE_KEY
 import de.ex_parrot.cookbook.data.SHOWN_NUTRITION_KEYS
 import de.ex_parrot.cookbook.data.Recipe
 import de.ex_parrot.cookbook.ui.components.Loadable
@@ -246,7 +247,8 @@ class EditRecipeViewModel(
                 .map { (key, value) -> HiddenEntry(key, isNutrition = false, preview = previewOf(value)) }
             val nutritionEntries = (original["nutrition"] as? JsonObject)?.entries.orEmpty()
                 .filter { (key, value) ->
-                    !key.startsWith("@") && key !in SHOWN_NUTRITION_KEYS && key !in removedNutritionKeys &&
+                    !key.startsWith("@") && key !in SHOWN_NUTRITION_KEYS && key != SERVING_SIZE_KEY &&
+                        key !in removedNutritionKeys &&
                         previewOf(value).isNotBlank()
                 }
                 .map { (key, value) -> HiddenEntry(key, isNutrition = true, preview = previewOf(value)) }
@@ -270,11 +272,17 @@ class EditRecipeViewModel(
     private fun toJson(): JsonObject {
         val fields = original.toMutableMap()
         removedKeys.forEach { fields.remove(it) }
+        // Added by the server on every read; not part of the recipe.
+        fields.remove("printImage")
         val nutritionFields = ((original["nutrition"] as? JsonObject)?.toMutableMap() ?: mutableMapOf())
         removedNutritionKeys.forEach { nutritionFields.remove(it) }
         SHOWN_NUTRITION_KEYS.forEach { key ->
             val value = nutrition[key]?.trim().orEmpty()
             if (value.isEmpty()) nutritionFields.remove(key) else nutritionFields[key] = JsonPrimitive(value)
+        }
+        // The values are per serving, so state that whenever there are any.
+        if (SHOWN_NUTRITION_KEYS.any { !nutrition[it].isNullOrBlank() }) {
+            nutritionFields[SERVING_SIZE_KEY] = JsonPrimitive(appContext.getString(de.ex_parrot.cookbook.R.string.nutrition_serving_size_value))
         }
         nutritionFields["@type"] = JsonPrimitive("NutritionInformation")
         fields["nutrition"] = JsonObject(nutritionFields)
