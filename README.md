@@ -56,11 +56,13 @@ Updates install over the previous version. The app can also look for new release
 - Offline reading: all recipes and thumbnails are kept on the phone and synced in the
   background (on start at most every 10 minutes, on pull to refresh, or from Settings);
   without a connection the stored state is shown with a notice
+- Offline editing: creating, editing and deleting recipes works without a connection;
+  changes (including camera/gallery photos) are queued and uploaded in order once the
+  server is reachable. If a recipe was changed on the server meanwhile (detected via
+  `dateModified`), the app asks: my version, server version or keep both
 - Update check against GitHub releases (on start, optional, or manually)
 - English and German; partial translations for 23 more languages taken from the Flutter
   app (`tools/port_translations.py`)
-
-Planned: editing while offline.
 
 ## Technical notes
 
