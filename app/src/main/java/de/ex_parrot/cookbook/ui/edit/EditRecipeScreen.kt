@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.PriorityHigh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -195,7 +196,7 @@ private fun EditForm(vm: EditRecipeViewModel, imageLoader: coil3.ImageLoader, mo
         SectionTitle(stringResource(R.string.tools))
         ListEditor(vm.tools, stringResource(R.string.edit_add_tool), multiLine = false)
         SectionTitle(stringResource(R.string.ingredients))
-        ListEditor(vm.ingredients, stringResource(R.string.edit_add_ingredient), multiLine = false)
+        ListEditor(vm.ingredients, stringResource(R.string.edit_add_ingredient), multiLine = false, flagDecimals = true)
         SectionTitle(stringResource(R.string.instructions))
         ListEditor(vm.instructions, stringResource(R.string.edit_add_step), multiLine = true, numbered = true)
 
@@ -350,15 +351,35 @@ private fun DurationRow(label: String, field: DurationField) {
 }
 
 @Composable
-private fun ListEditor(items: SnapshotStateList<String>, addLabel: String, multiLine: Boolean, numbered: Boolean = false) {
+private fun ListEditor(
+    items: SnapshotStateList<String>,
+    addLabel: String,
+    multiLine: Boolean,
+    numbered: Boolean = false,
+    /** Mark entries whose decimal separator differs from the phone language's. */
+    flagDecimals: Boolean = false,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEachIndexed { index, value ->
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val localized = if (flagDecimals) de.ex_parrot.cookbook.data.localizeDecimals(value) else value
                 OutlinedTextField(
                     value = value,
                     onValueChange = { items[index] = it },
                     label = if (numbered) {
                         { Text("${index + 1}") }
+                    } else null,
+                    // Red "!" for e.g. "0.5 l" instead of "0,5 l"; tapping it corrects the entry.
+                    trailingIcon = if (localized != value) {
+                        {
+                            IconButton(onClick = { items[index] = localized }) {
+                                Icon(
+                                    Icons.Outlined.PriorityHigh,
+                                    stringResource(R.string.edit_fix_decimal),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
                     } else null,
                     singleLine = !multiLine,
                     minLines = if (multiLine) 2 else 1,

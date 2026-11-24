@@ -170,4 +170,5 @@
     <string name="edit_hidden_delete_all_title">Alle weiteren Angaben löschen?</string>
     <string name="edit_hidden_delete_all_text">%1$d Angaben werden beim Speichern aus dem Rezept entfernt.</string>
     <string name="nutrition_serving_size_value">1 Portion</string>
+    <string name="edit_fix_decimal">Dezimaltrenner korrigieren</string>
 </resources>
