@@ -27,4 +27,9 @@ class AppContainer(app: Application) {
     /** Navigation requests from intents (share menu, timer notifications). */
     val pendingImportUrl = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     val pendingOpenTimers = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    /** A newer version to offer in the update dialog. */
+    val availableUpdate = kotlinx.coroutines.flow.MutableStateFlow<de.ex_parrot.cookbook.data.UpdateInfo?>(null)
+    /** The automatic check runs once per app start. */
+    var startupUpdateCheckDone = false
 }

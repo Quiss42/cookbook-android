@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
@@ -54,12 +55,14 @@ fun SettingsScreen(
     session: Session,
     settings: AppSettings,
     settingsStore: SettingsStore,
+    onUpdateFound: (de.ex_parrot.cookbook.data.UpdateInfo) -> Unit,
     onLogout: () -> Unit,
     onBack: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var confirmLogout by remember { mutableStateOf(false) }
+    var checkingUpdates by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -145,6 +148,53 @@ fun SettingsScreen(
                 headlineContent = { Text(stringResource(R.string.logout), color = MaterialTheme.colorScheme.error) },
                 modifier = Modifier.clickable { confirmLogout = true },
             )
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionHeader(stringResource(R.string.settings_updates))
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_check_updates_on_start)) },
+                trailingContent = { androidx.compose.material3.Checkbox(checked = settings.checkUpdatesOnStart, onCheckedChange = null) },
+                modifier = Modifier.clickable {
+                    scope.launch { settingsStore.setCheckUpdatesOnStart(!settings.checkUpdatesOnStart) }
+                },
+            )
+            androidx.compose.material3.OutlinedButton(
+                onClick = {
+                    checkingUpdates = true
+                    scope.launch {
+                        try {
+                            val update = de.ex_parrot.cookbook.data.UpdateChecker.check(BuildConfig.VERSION_NAME)
+                            if (update != null) {
+                                onUpdateFound(update)
+                            } else {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    context.getString(R.string.update_none, BuildConfig.VERSION_NAME),
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Throwable) {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.update_check_failed),
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        } finally {
+                            checkingUpdates = false
+                        }
+                    }
+                },
+                enabled = !checkingUpdates,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            ) {
+                if (checkingUpdates) {
+                    androidx.compose.material3.CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(stringResource(R.string.settings_check_updates_now))
+                }
+            }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             ListItem(

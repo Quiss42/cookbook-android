@@ -42,6 +42,7 @@ data class AppSettings(
     val keepScreenOn: Boolean = true,
     /** Categories per row on the start screen (1-3). */
     val categoryColumns: Int = 2,
+    val checkUpdatesOnStart: Boolean = false,
 )
 
 class SettingsStore(private val context: Context) {
@@ -49,6 +50,7 @@ class SettingsStore(private val context: Context) {
     private val dynamicColorKey = booleanPreferencesKey("dynamic_color")
     private val keepScreenOnKey = booleanPreferencesKey("keep_screen_on")
     private val categoryColumnsKey = intPreferencesKey("category_columns")
+    private val checkUpdatesKey = booleanPreferencesKey("check_updates_on_start")
 
     val settings: Flow<AppSettings> = context.settingsDataStore.data.map { prefs ->
         AppSettings(
@@ -57,6 +59,7 @@ class SettingsStore(private val context: Context) {
             dynamicColor = prefs[dynamicColorKey] ?: true,
             keepScreenOn = prefs[keepScreenOnKey] ?: true,
             categoryColumns = (prefs[categoryColumnsKey] ?: 2).coerceIn(1, 3),
+            checkUpdatesOnStart = prefs[checkUpdatesKey] ?: false,
         )
     }
 
@@ -66,6 +69,10 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setDynamicColor(enabled: Boolean) {
         context.settingsDataStore.edit { it[dynamicColorKey] = enabled }
+    }
+
+    suspend fun setCheckUpdatesOnStart(enabled: Boolean) {
+        context.settingsDataStore.edit { it[checkUpdatesKey] = enabled }
     }
 
     suspend fun setCategoryColumns(columns: Int) {

@@ -171,4 +171,14 @@
     <string name="edit_hidden_delete_all_text">%1$d Angaben werden beim Speichern aus dem Rezept entfernt.</string>
     <string name="nutrition_serving_size_value">1 Portion</string>
     <string name="edit_fix_decimal">Dezimaltrenner korrigieren</string>
+
+    <string name="yes">Ja</string>
+    <string name="no">Nein</string>
+    <string name="settings_updates">Updates</string>
+    <string name="settings_check_updates_on_start">Beim Start nach Updates suchen</string>
+    <string name="settings_check_updates_now">Nach Updates suchen</string>
+    <string name="update_found_title">Neue Version gefunden. Installieren?</string>
+    <string name="update_found_text">Version %1$s ist verfügbar (installiert: %2$s). Der Download öffnet sich im Browser.</string>
+    <string name="update_none">Du hast die neueste Version (%1$s).</string>
+    <string name="update_check_failed">Suche nach Updates fehlgeschlagen. Ist das Handy online?</string>
 </resources>

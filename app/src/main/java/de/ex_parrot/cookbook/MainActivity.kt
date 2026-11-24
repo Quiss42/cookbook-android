@@ -25,6 +25,8 @@ import androidx.navigation.toRoute
 import de.ex_parrot.cookbook.data.AppSettings
 import de.ex_parrot.cookbook.data.Session
 import de.ex_parrot.cookbook.data.SessionState
+import de.ex_parrot.cookbook.data.UpdateChecker
+import de.ex_parrot.cookbook.data.UpdateInfo
 import de.ex_parrot.cookbook.timer.TimerController
 import de.ex_parrot.cookbook.timer.TimersScreen
 import de.ex_parrot.cookbook.ui.browse.CategoriesScreen
@@ -45,6 +47,7 @@ import de.ex_parrot.cookbook.ui.search.SearchScreen
 import de.ex_parrot.cookbook.ui.search.SearchViewModel
 import de.ex_parrot.cookbook.ui.settings.SettingsScreen
 import de.ex_parrot.cookbook.ui.theme.CookbookTheme
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -83,11 +86,31 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by container.settingsStore.settings.collectAsStateWithLifecycle(AppSettings())
             val sessionState by container.sessionManager.state.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) {
+                // Wait for the stored settings (not the defaults) before deciding.
+                if (!container.startupUpdateCheckDone && container.settingsStore.settings.first().checkUpdatesOnStart) {
+                    container.startupUpdateCheckDone = true
+                    // Silent at startup: no message if offline or up to date.
+                    runCatching { UpdateChecker.check(BuildConfig.VERSION_NAME) }.getOrNull()
+                        ?.let { container.availableUpdate.value = it }
+                }
+            }
             CookbookTheme(settings) {
                 when (val state = sessionState) {
                     SessionState.Loading -> LoadingView()
                     SessionState.LoggedOut -> LoginScreen(viewModel { LoginViewModel(container.sessionManager) })
                     is SessionState.LoggedIn -> MainNavigation(container, state.session, settings)
+                }
+                val update by container.availableUpdate.collectAsStateWithLifecycle()
+                update?.let { info ->
+                    UpdateDialog(
+                        info = info,
+                        onInstall = {
+                            container.availableUpdate.value = null
+                            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(info.downloadUrl)))
+                        },
+                        onDismiss = { container.availableUpdate.value = null },
+                    )
                 }
             }
         }
@@ -229,9 +252,33 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
                 session = session,
                 settings = settings,
                 settingsStore = container.settingsStore,
+                onUpdateFound = { container.availableUpdate.value = it },
                 onLogout = { container.scope.launch { container.sessionManager.logout() } },
                 onBack = { nav.popBackStack() },
             )
         }
     }
+}
+
+@Composable
+private fun UpdateDialog(info: UpdateInfo, onInstall: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.update_found_title)) },
+        text = {
+            androidx.compose.material3.Text(
+                androidx.compose.ui.res.stringResource(R.string.update_found_text, info.version, BuildConfig.VERSION_NAME),
+            )
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onInstall) {
+                androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.yes))
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.no))
+            }
+        },
+    )
 }
