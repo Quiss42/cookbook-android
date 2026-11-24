@@ -14,6 +14,9 @@ import de.ex_parrot.cookbook.data.CookbookRepository
 import de.ex_parrot.cookbook.data.Http
 import de.ex_parrot.cookbook.data.ImageTools
 import de.ex_parrot.cookbook.data.NextcloudFiles
+import de.ex_parrot.cookbook.data.EDITED_RECIPE_KEYS
+import de.ex_parrot.cookbook.data.SERVER_RECIPE_KEYS
+import de.ex_parrot.cookbook.data.SHOWN_NUTRITION_KEYS
 import de.ex_parrot.cookbook.data.Recipe
 import de.ex_parrot.cookbook.ui.components.Loadable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,6 +59,14 @@ class DurationField {
         return if (total <= 0) "" else "PT${total / 60}H${total % 60}M"
     }
 }
+
+/** A value stored in the recipe that the app does not show. */
+data class HiddenEntry(
+    /** Top-level recipe key, or the key inside "nutrition" if [isNutrition]. */
+    val key: String,
+    val isNutrition: Boolean,
+    val preview: String,
+)
 
 sealed interface SaveState {
     data object Idle : SaveState
@@ -101,6 +112,10 @@ class EditRecipeViewModel(
     val prepTime = DurationField()
     val cookTime = DurationField()
     val totalTime = DurationField()
+    /** Editable nutrition values by key (see [SHOWN_NUTRITION_KEYS]). */
+    val nutrition = androidx.compose.runtime.mutableStateMapOf<String, String>()
+    private val removedKeys = mutableStateListOf<String>()
+    private val removedNutritionKeys = mutableStateListOf<String>()
     val tools: SnapshotStateList<String> = mutableStateListOf()
     val ingredients: SnapshotStateList<String> = mutableStateListOf()
     val instructions: SnapshotStateList<String> = mutableStateListOf()
@@ -162,6 +177,10 @@ class EditRecipeViewModel(
         prepTime.set(recipe.prepTime)
         cookTime.set(recipe.cookTime)
         totalTime.set(recipe.totalTime)
+        nutrition.clear()
+        recipe.nutrition.forEach { (key, value) -> if (key in SHOWN_NUTRITION_KEYS) nutrition[key] = value }
+        removedKeys.clear()
+        removedNutritionKeys.clear()
         tools.replaceWith(recipe.tools)
         ingredients.replaceWith(recipe.ingredients)
         instructions.replaceWith(recipe.instructions)
@@ -219,8 +238,46 @@ class EditRecipeViewModel(
 
     val canSave: Boolean get() = name.isNotBlank() && saveState != SaveState.Saving
 
+    /** Values in the recipe that the app neither shows nor edits. */
+    val hiddenEntries: List<HiddenEntry>
+        get() {
+            val topLevel = original.entries
+                .filter { (key, _) -> key !in EDITED_RECIPE_KEYS && key !in SERVER_RECIPE_KEYS && key !in removedKeys }
+                .map { (key, value) -> HiddenEntry(key, isNutrition = false, preview = previewOf(value)) }
+            val nutritionEntries = (original["nutrition"] as? JsonObject)?.entries.orEmpty()
+                .filter { (key, value) ->
+                    !key.startsWith("@") && key !in SHOWN_NUTRITION_KEYS && key !in removedNutritionKeys &&
+                        previewOf(value).isNotBlank()
+                }
+                .map { (key, value) -> HiddenEntry(key, isNutrition = true, preview = previewOf(value)) }
+            return nutritionEntries + topLevel
+        }
+
+    private fun previewOf(value: kotlinx.serialization.json.JsonElement): String = when (value) {
+        is JsonPrimitive -> value.content
+        is JsonArray -> value.joinToString(", ") { (it as? JsonPrimitive)?.content ?: it.toString() }
+        is JsonObject -> value.entries.joinToString(", ") { "${it.key}: ${(it.value as? JsonPrimitive)?.content ?: it.value}" }
+    }.take(200)
+
+    fun removeHidden(entry: HiddenEntry) {
+        if (entry.isNutrition) removedNutritionKeys.add(entry.key) else removedKeys.add(entry.key)
+    }
+
+    fun removeAllHidden() {
+        hiddenEntries.forEach(::removeHidden)
+    }
+
     private fun toJson(): JsonObject {
         val fields = original.toMutableMap()
+        removedKeys.forEach { fields.remove(it) }
+        val nutritionFields = ((original["nutrition"] as? JsonObject)?.toMutableMap() ?: mutableMapOf())
+        removedNutritionKeys.forEach { nutritionFields.remove(it) }
+        SHOWN_NUTRITION_KEYS.forEach { key ->
+            val value = nutrition[key]?.trim().orEmpty()
+            if (value.isEmpty()) nutritionFields.remove(key) else nutritionFields[key] = JsonPrimitive(value)
+        }
+        nutritionFields["@type"] = JsonPrimitive("NutritionInformation")
+        fields["nutrition"] = JsonObject(nutritionFields)
         fun putString(key: String, value: String) { fields[key] = JsonPrimitive(value.trim()) }
         fun putList(key: String, values: List<String>) {
             fields[key] = JsonArray(values.map { it.trim() }.filter { it.isNotEmpty() }.map(::JsonPrimitive))

@@ -56,7 +56,7 @@
     <string name="tools">Utensilien</string>
     <string name="ingredients">Zutaten</string>
     <string name="instructions">Zubereitung</string>
-    <string name="nutrition">Nährwerte</string>
+    <string name="nutrition">Nährwerte pro Portion</string>
     <string name="nutrition_calories">Kalorien</string>
     <string name="nutrition_carbohydrates">Kohlenhydrate</string>
     <string name="nutrition_cholesterol">Cholesterin</string>
@@ -162,4 +162,11 @@
         <item quantity="other">%d weitere anzeigen</item>
     </plurals>
     <string name="settings_category_columns">Kategorien pro Zeile</string>
+
+    <string name="edit_section_hidden">Weitere gespeicherte Angaben</string>
+    <string name="edit_hidden_hint">Diese Angaben sind im Rezept gespeichert, werden in der App aber nicht angezeigt. Entfernte Angaben werden beim Speichern gelöscht.</string>
+    <string name="edit_hidden_nutrition">Nährwert: %1$s</string>
+    <string name="edit_hidden_delete_all">Alle löschen</string>
+    <string name="edit_hidden_delete_all_title">Alle weiteren Angaben löschen?</string>
+    <string name="edit_hidden_delete_all_text">%1$d Angaben werden beim Speichern aus dem Rezept entfernt.</string>
 </resources>

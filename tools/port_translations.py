@@ -37,7 +37,6 @@ MAPPING = {
     "field_total_time": "recipe.fields.time.total",
     "field_hours": "recipe.fields.time.hours",
     "field_minutes": "recipe.fields.time.minutes",
-    "nutrition": "recipe.fields.nutrition.title",
     "nutrition_calories": "recipe.fields.nutrition.items.calories",
     "nutrition_carbohydrates": "recipe.fields.nutrition.items.carbohydrateContent",
     "nutrition_cholesterol": "recipe.fields.nutrition.items.cholesterolContent",

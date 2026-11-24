@@ -57,6 +57,20 @@ data class Recipe(val raw: JsonObject) {
             .orEmpty()
 }
 
+/** Nutrition values shown and edited in the app, in display order. */
+val SHOWN_NUTRITION_KEYS = listOf("calories", "proteinContent", "fatContent", "carbohydrateContent", "sugarContent")
+
+/** Recipe fields the app shows/edits itself. */
+val EDITED_RECIPE_KEYS = setOf(
+    "name", "description", "recipeCategory", "keywords", "url", "image", "recipeYield",
+    "prepTime", "cookTime", "totalTime", "tool", "recipeIngredient", "recipeInstructions", "nutrition",
+)
+
+/** Fields maintained by the Cookbook server; never offered for deletion. */
+val SERVER_RECIPE_KEYS = setOf(
+    "@context", "@type", "id", "recipe_id", "dateCreated", "dateModified", "imageUrl", "imagePlaceholderUrl",
+)
+
 internal fun JsonObject.string(key: String): String =
     (this[key] as? JsonPrimitive)?.contentOrNull.orEmpty()
 

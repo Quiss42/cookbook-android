@@ -333,9 +333,12 @@ private fun RecipeContent(recipe: Recipe, session: Session, viewModel: RecipeVie
             }
         }
 
-        if (recipe.nutrition.isNotEmpty()) {
+        val nutrition = recipe.nutrition.toMap().let { values ->
+            de.ex_parrot.cookbook.data.SHOWN_NUTRITION_KEYS.mapNotNull { key -> values[key]?.let { key to it } }
+        }
+        if (nutrition.isNotEmpty()) {
             section("nutrition") { SectionTitle(stringResource(R.string.nutrition)) }
-            itemsIndexed(recipe.nutrition, key = { i, _ -> "nut$i" }) { _, (key, value) ->
+            itemsIndexed(nutrition, key = { i, _ -> "nut$i" }) { _, (key, value) ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                     Text(nutritionLabel(key), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(value)
@@ -380,7 +383,7 @@ fun formatDuration(duration: Duration): String {
 }
 
 @Composable
-private fun nutritionLabel(key: String): String = when (key) {
+fun nutritionLabel(key: String): String = when (key) {
     "calories" -> stringResource(R.string.nutrition_calories)
     "carbohydrateContent" -> stringResource(R.string.nutrition_carbohydrates)
     "cholesterolContent" -> stringResource(R.string.nutrition_cholesterol)

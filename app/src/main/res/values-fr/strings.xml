@@ -20,7 +20,6 @@
     <string name="field_cook_time">Durée de cuisson :</string>
     <string name="field_total_time">Durée totale :</string>
     <string name="field_hours">Heures</string>
-    <string name="nutrition">Information nutritionnelle</string>
     <string name="nutrition_calories">Énergie</string>
     <string name="nutrition_carbohydrates">Glucides</string>
     <string name="nutrition_cholesterol">Cholestérol</string>

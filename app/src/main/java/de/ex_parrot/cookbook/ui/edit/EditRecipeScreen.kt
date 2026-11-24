@@ -198,6 +198,20 @@ private fun EditForm(vm: EditRecipeViewModel, imageLoader: coil3.ImageLoader, mo
         ListEditor(vm.ingredients, stringResource(R.string.edit_add_ingredient), multiLine = false)
         SectionTitle(stringResource(R.string.instructions))
         ListEditor(vm.instructions, stringResource(R.string.edit_add_step), multiLine = true, numbered = true)
+
+        SectionTitle(stringResource(R.string.nutrition))
+        de.ex_parrot.cookbook.data.SHOWN_NUTRITION_KEYS.forEach { key ->
+            OutlinedTextField(
+                value = vm.nutrition[key].orEmpty(),
+                onValueChange = { vm.nutrition[key] = it },
+                label = { Text(de.ex_parrot.cookbook.ui.recipe.nutritionLabel(key)) },
+                placeholder = { Text(if (key == "calories") "450 kcal" else "12 g") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        HiddenEntriesSection(vm)
         Spacer(Modifier.size(32.dp))
     }
 }
@@ -251,6 +265,64 @@ private fun CategoryField(vm: EditRecipeViewModel) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun HiddenEntriesSection(vm: EditRecipeViewModel) {
+    val entries = vm.hiddenEntries
+    if (entries.isEmpty()) return
+    var confirmAll by remember { mutableStateOf(false) }
+
+    SectionTitle(stringResource(R.string.edit_section_hidden))
+    Text(
+        stringResource(R.string.edit_hidden_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Column {
+        entries.forEach { entry ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
+                    Text(
+                        if (entry.isNutrition) {
+                            stringResource(R.string.edit_hidden_nutrition, de.ex_parrot.cookbook.ui.recipe.nutritionLabel(entry.key))
+                        } else {
+                            entry.key
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        entry.preview,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
+                IconButton(onClick = { vm.removeHidden(entry) }) {
+                    Icon(Icons.Outlined.Delete, stringResource(R.string.remove))
+                }
+            }
+        }
+    }
+    TextButton(onClick = { confirmAll = true }) {
+        Icon(Icons.Outlined.Delete, null, Modifier.size(18.dp))
+        Text(stringResource(R.string.edit_hidden_delete_all), Modifier.padding(start = 8.dp))
+    }
+
+    if (confirmAll) {
+        AlertDialog(
+            onDismissRequest = { confirmAll = false },
+            title = { Text(stringResource(R.string.edit_hidden_delete_all_title)) },
+            text = { Text(stringResource(R.string.edit_hidden_delete_all_text, entries.size)) },
+            confirmButton = {
+                TextButton(onClick = { vm.removeAllHidden(); confirmAll = false }) {
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmAll = false }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 }
 

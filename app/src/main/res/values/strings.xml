@@ -63,7 +63,7 @@
     <string name="tools">Tools</string>
     <string name="ingredients">Ingredients</string>
     <string name="instructions">Instructions</string>
-    <string name="nutrition">Nutrition</string>
+    <string name="nutrition">Nutrition per serving</string>
     <string name="nutrition_calories">Calories</string>
     <string name="nutrition_carbohydrates">Carbohydrates</string>
     <string name="nutrition_cholesterol">Cholesterol</string>
@@ -175,4 +175,11 @@
         <item quantity="other">Show %d more</item>
     </plurals>
     <string name="settings_category_columns">Categories per row</string>
+
+    <string name="edit_section_hidden">Other stored values</string>
+    <string name="edit_hidden_hint">These values are stored in the recipe but not shown in the app. Removed values are deleted when you save.</string>
+    <string name="edit_hidden_nutrition">Nutrition: %1$s</string>
+    <string name="edit_hidden_delete_all">Delete all</string>
+    <string name="edit_hidden_delete_all_title">Delete all other values?</string>
+    <string name="edit_hidden_delete_all_text">%1$d values will be removed from the recipe when you save.</string>
 </resources>
