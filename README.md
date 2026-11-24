@@ -7,19 +7,66 @@ It is a rewrite of the Flutter client
 [Teifun2/nextcloud-cookbook-flutter](https://github.com/Teifun2/nextcloud-cookbook-flutter)
 (CC0), keeping its user experience but using Android's own tooling.
 
+## Requirements
+
+- Android 8.0 or newer
+- A Nextcloud server with the Cookbook app installed
+
+## Installation
+
+Download the APK from the latest [release](https://github.com/Quiss42/cookbook-android/releases/latest)
+and open it on the phone (installing from unknown sources must be allowed for the browser).
+Updates install over the previous version. The app can also look for new releases itself
+(Settings → Updates).
+
 ## Features
 
-- Login through the browser (Nextcloud Login Flow v2) or with an app password
-- Categories with cover photos, recipe lists, server-side search
-- Recipe view with ticking off ingredients and steps, keep-screen-on while cooking
-- Create, edit and delete recipes; photos from Nextcloud files, a web address (downloaded by the phone), the camera or the gallery
+**Login**
+- Through the browser (Nextcloud Login Flow v2) or with an app password
+- Credentials encrypted with an Android Keystore key; logging out revokes the app password
+- Optional acceptance of self-signed certificates (off by default); user-installed CAs are trusted
+
+**Browsing**
+- Categories with cover photos, 1–3 per row (configurable), "All recipes" and "Uncategorized"
+- Recipe lists with thumbnails, pull to refresh
+- Server-side search (names, keywords, categories)
+
+**Recipe view**
+- Photo, description, servings, times, category, keywords, link to the original
+- Ingredients and steps can be ticked off while cooking
+- Nutrition per serving: calories, protein, fat, carbohydrates, sugar
+- Decimal numbers shown with the phone language's separator ("0.5 l" → "0,5 l" in German)
+- Keeps the screen on while a recipe is open (configurable)
+
+**Editing**
+- Create, edit and delete recipes
+- Photo from Nextcloud files, a web address (downloaded by the phone; for a web page its
+  preview image is used, prefilled with the recipe's source), the camera or the gallery
+- Category with suggestions; keywords as chips (existing ones can be checked, new ones added)
+- Reorderable tools, ingredients and steps; ingredients with a foreign decimal separator
+  are marked and can be fixed with a tap
+- Nutrition per serving (serving size is set to "1 serving" automatically)
+- Lists values stored in the recipe that the app does not show, with the option to
+  delete single ones or all; server-maintained fields are kept
+
+**More**
 - Import recipes from a web page, also via Android's share menu
-- Cooking timers with countdown notification
+- Cooking timers with exact alarms, countdown notification and timers screen; survive reboots
 - Light/dark theme, wallpaper colours, per-app language (Android 13+)
-- English and German; partial translations for 23 more languages taken from
-  the Flutter app (`tools/port_translations.py`)
+- Update check against GitHub releases (on start, optional, or manually)
+- English and German; partial translations for 23 more languages taken from the Flutter
+  app (`tools/port_translations.py`)
 
 Planned: offline cache.
+
+## Technical notes
+
+- API calls go through `/index.php/apps/cookbook/api/…`, so they also work on web servers
+  that only rewrite GET requests to Nextcloud.
+- Photos from the phone are downscaled to 2048 px JPEG, uploaded to a temporary file in the
+  user's Nextcloud, attached by path (Cookbook copies it into the recipe folder) and the
+  temporary file is deleted again.
+- Fields the app does not know are preserved when a recipe is saved.
 
 ## Building
 
