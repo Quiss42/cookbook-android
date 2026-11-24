@@ -118,3 +118,21 @@ fun parseIsoDuration(value: String): Duration? {
 }
 
 fun Duration.toIsoString(): String = "PT${toHours()}H${toMinutes() % 60}M"
+
+private val decimalNumber = Regex("""\d+(?:[.,]\d+)+""")
+
+/**
+ * Writes decimal numbers with the decimal separator of the phone's language,
+ * e.g. "12.5 g" -> "12,5 g" in German. Numbers with exactly three digits after
+ * the separator ("1.000 g") or several separators ("1.250.000") are left alone,
+ * because those are usually thousands separators.
+ */
+fun localizeDecimals(
+    text: String,
+    separator: Char = java.text.DecimalFormatSymbols.getInstance().decimalSeparator,
+): String = decimalNumber.replace(text) { match ->
+    val number = match.value
+    val separators = number.count { it == '.' || it == ',' }
+    val fraction = number.substringAfterLast('.').substringAfterLast(',')
+    if (separators != 1 || fraction.length == 3) number else number.replace('.', separator).replace(',', separator)
+}

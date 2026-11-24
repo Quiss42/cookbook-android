@@ -179,7 +179,9 @@ class EditRecipeViewModel(
         cookTime.set(recipe.cookTime)
         totalTime.set(recipe.totalTime)
         nutrition.clear()
-        recipe.nutrition.forEach { (key, value) -> if (key in SHOWN_NUTRITION_KEYS) nutrition[key] = value }
+        recipe.nutrition.forEach { (key, value) ->
+            if (key in SHOWN_NUTRITION_KEYS) nutrition[key] = de.ex_parrot.cookbook.data.localizeDecimals(value)
+        }
         removedKeys.clear()
         removedNutritionKeys.clear()
         tools.replaceWith(recipe.tools)
@@ -277,7 +279,7 @@ class EditRecipeViewModel(
         val nutritionFields = ((original["nutrition"] as? JsonObject)?.toMutableMap() ?: mutableMapOf())
         removedNutritionKeys.forEach { nutritionFields.remove(it) }
         SHOWN_NUTRITION_KEYS.forEach { key ->
-            val value = nutrition[key]?.trim().orEmpty()
+            val value = de.ex_parrot.cookbook.data.localizeDecimals(nutrition[key]?.trim().orEmpty())
             if (value.isEmpty()) nutritionFields.remove(key) else nutritionFields[key] = JsonPrimitive(value)
         }
         // The values are per serving, so state that whenever there are any.

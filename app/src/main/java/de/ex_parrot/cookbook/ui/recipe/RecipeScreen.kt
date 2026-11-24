@@ -287,7 +287,7 @@ private fun RecipeContent(recipe: Recipe, session: Session, viewModel: RecipeVie
                         Checkbox(checked = checked, onCheckedChange = null)
                     }
                     Text(
-                        ingredient,
+                        de.ex_parrot.cookbook.data.localizeDecimals(ingredient),
                         style = MaterialTheme.typography.bodyLarge,
                         textDecoration = if (checked) TextDecoration.LineThrough else null,
                         color = if (checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
@@ -341,7 +341,7 @@ private fun RecipeContent(recipe: Recipe, session: Session, viewModel: RecipeVie
             itemsIndexed(nutrition, key = { i, _ -> "nut$i" }) { _, (key, value) ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                     Text(nutritionLabel(key), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(value)
+                    Text(de.ex_parrot.cookbook.data.localizeDecimals(value))
                 }
             }
         }
