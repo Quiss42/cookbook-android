@@ -84,3 +84,25 @@ Locally: Android SDK + Gradle 8.14, then `gradle :app:assembleDebug`.
 Release signing uses the repository secrets `ANDROID_KEYSTORE_BASE64`,
 `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`
 (or `key.properties` locally).
+
+## License
+
+Copyright (C) 2026 Quiss42
+
+This program is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version. See [LICENSE](LICENSE).
+
+### Third-party material
+
+- **App and notification icon** (`app/src/main/res/drawable*/ic_launcher_*`,
+  `mipmap*/ic_launcher*`, `drawable/ic_notification.png`): taken from
+  [Teifun2/nextcloud-cookbook-flutter](https://github.com/Teifun2/nextcloud-cookbook-flutter)
+  (CC0 1.0). The cutlery symbol appears to be the "cutlery" glyph of Font Awesome 4
+  (SIL Open Font License 1.1), whose terms are not changed by this project's license.
+- **Translations** other than English and German (`app/src/main/res/values-*/strings.xml`):
+  taken from the same Flutter app (CC0 1.0), where they were contributed through
+  Nextcloud's Transifex project.
+- **Libraries** used by the app (AndroidX, Jetpack Compose, OkHttp, Coil, kotlinx) are not
+  part of this repository; they are licensed under the Apache License 2.0, which is
+  compatible with GPL-3.0.
