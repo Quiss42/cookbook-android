@@ -200,7 +200,7 @@ class EditRecipeViewModel(
     val hasChanges: Boolean get() = currentState() != snapshot || imageSelection != ImageSelection.Keep
 
     fun originalImageUrl(): String? =
-        if (recipeId != null && hasOriginalImage) repository.imageUrl(recipeId, "full", originalImageVersion) else null
+        if (recipeId != null && hasOriginalImage) repository.imageUrl(recipeId, "full") else null
 
     fun selectCloudImage(entry: CloudEntry) {
         imageSelection = ImageSelection.Cloud(entry.path, entry.fileId)

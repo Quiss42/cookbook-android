@@ -20,6 +20,21 @@ class Session(private val context: Context, val account: Account) {
     val client = Http.authenticated(account)
     val offlineStore = OfflineStore(context, account)
     val repository = CookbookRepository(CookbookApi(account, client, offlineStore), offlineStore)
+    init {
+        repository.onImagesOutdated = ::forgetImages
+    }
+
+    /** Removes a recipe's stored pictures from memory and disk so they are loaded again. */
+    fun forgetImages(recipeId: String) {
+        listOf("thumb", "full", "thumb16").forEach { size ->
+            val url = repository.imageUrl(recipeId, size)
+            imageLoader.memoryCache?.let { cache ->
+                cache.keys.filter { it.key == url }.forEach { cache.remove(it) }
+            }
+            imageLoader.diskCache?.remove(url)
+        }
+    }
+
     private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
     private var syncJob: kotlinx.coroutines.Job? = null
     val files = NextcloudFiles(account, client)
@@ -49,7 +64,7 @@ class Session(private val context: Context, val account: Account) {
                     // Keep small pictures for lists and covers on the phone as well.
                     imageLoader.enqueue(
                         coil3.request.ImageRequest.Builder(context)
-                            .data(repository.imageUrl(stub.id, version = stub.dateModified))
+                            .data(repository.imageUrl(stub.id))
                             .memoryCachePolicy(coil3.request.CachePolicy.DISABLED)
                             .build(),
                     )

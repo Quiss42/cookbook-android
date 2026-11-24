@@ -152,7 +152,7 @@ fun CategoriesScreen(
                             columns = columns,
                             title = categoryTitle(name),
                             count = count,
-                            imageUrl = covers[name]?.let { session.repository.imageUrl(it.id, version = it.dateModified) },
+                            imageUrl = covers[name]?.let { session.repository.imageUrl(it.id) },
                             session = session,
                             onClick = { onOpenCategory(name) },
                         )
@@ -243,7 +243,7 @@ fun RecipeList(recipes: List<RecipeStub>, session: Session, onOpenRecipe: (Recip
                 },
                 leadingContent = {
                     RecipeImage(
-                        url = session.repository.imageUrl(recipe.id, version = recipe.dateModified),
+                        url = session.repository.imageUrl(recipe.id),
                         imageLoader = session.imageLoader,
                         modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
                     )

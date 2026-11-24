@@ -69,5 +69,5 @@ class RecipeViewModel(
         if (!list.remove(index)) list.add(index)
     }
 
-    fun imageUrl(size: String, version: String?) = repository.imageUrl(recipeId, size, version)
+    fun imageUrl(size: String) = repository.imageUrl(recipeId, size)
 }

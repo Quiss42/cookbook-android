@@ -228,8 +228,8 @@ private fun RecipeContent(recipe: Recipe, session: Session, viewModel: RecipeVie
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
         item(key = "image") {
             RecipeImage(
-                url = viewModel.imageUrl("full", recipe.dateModified),
-                fallbackUrl = viewModel.imageUrl("thumb", recipe.dateModified),
+                url = viewModel.imageUrl("full"),
+                fallbackUrl = viewModel.imageUrl("thumb"),
                 imageLoader = session.imageLoader,
                 modifier = Modifier.fillMaxWidth().aspectRatio(16f / 10f),
             )

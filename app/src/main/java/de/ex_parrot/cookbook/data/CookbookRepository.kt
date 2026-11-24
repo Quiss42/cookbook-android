@@ -15,6 +15,9 @@ class CookbookRepository(val api: CookbookApi, private val store: OfflineStore? 
     private val categoryRecipes = ConcurrentHashMap<String, List<RecipeStub>>()
     private val recipes = ConcurrentHashMap<String, Recipe>()
 
+    /** Called when a recipe's stored pictures are outdated (set by the session). */
+    var onImagesOutdated: (recipeId: String) -> Unit = {}
+
     private val _changes = MutableStateFlow(0)
     /** Incremented whenever recipes are created, changed or deleted. */
     val changes: StateFlow<Int> = _changes
@@ -23,7 +26,10 @@ class CookbookRepository(val api: CookbookApi, private val store: OfflineStore? 
         categories = null
         allRecipes = null
         categoryRecipes.clear()
-        if (recipeId != null) recipes.remove(recipeId)
+        if (recipeId != null) {
+            recipes.remove(recipeId)
+            onImagesOutdated(recipeId)
+        }
         _changes.value++
     }
 
@@ -94,7 +100,12 @@ class CookbookRepository(val api: CookbookApi, private val store: OfflineStore? 
                 async {
                     limit.withPermit {
                         val modified = stub.dateModified.orEmpty()
-                        if (index[stub.id] != modified || modified.isEmpty()) {
+                        val known = synchronized(index) { index[stub.id] }
+                        if (known != null && known != modified) {
+                            // Changed elsewhere (e.g. in the web interface): the photo may be new too.
+                            onImagesOutdated(stub.id)
+                        }
+                        if (known != modified || modified.isEmpty()) {
                             // Fetching stores the answer as the offline copy.
                             runCatching { recipe(stub.id, refresh = true) }.onSuccess {
                                 // Only count it if it really came from the server.
@@ -116,5 +127,5 @@ class CookbookRepository(val api: CookbookApi, private val store: OfflineStore? 
         return stubs
     }
 
-    fun imageUrl(recipeId: String, size: String = "thumb", version: String? = null) = api.imageUrl(recipeId, size, version)
+    fun imageUrl(recipeId: String, size: String = "thumb") = api.imageUrl(recipeId, size)
 }
