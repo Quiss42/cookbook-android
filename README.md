@@ -92,10 +92,11 @@ This program is free software: you can redistribute it and/or modify it under th
 of the GNU General Public License as published by the Free Software Foundation, either
 version 3 of the License, or (at your option) any later version. See [LICENSE](LICENSE).
 
+The app and notification icon (an open book with fork and knife) is an own design and
+part of this project.
+
 ### Third-party material
 
-- **App and notification icon** (`app/src/main/res/drawable*/ic_launcher_*`,
-  `mipmap*/ic_launcher*`, `drawable/ic_notification.png`): Own icon design based on Nextcloud icon and Material Icons Flatware Icon
 - **Libraries** used by the app (AndroidX, Jetpack Compose, OkHttp, Coil, kotlinx) are not
   part of this repository; they are licensed under the Apache License 2.0, which is
   compatible with GPL-3.0.
