@@ -95,10 +95,7 @@ version 3 of the License, or (at your option) any later version. See [LICENSE](L
 ### Third-party material
 
 - **App and notification icon** (`app/src/main/res/drawable*/ic_launcher_*`,
-  `mipmap*/ic_launcher*`, `drawable/ic_notification.png`): taken from
-  [Teifun2/nextcloud-cookbook-flutter](https://github.com/Teifun2/nextcloud-cookbook-flutter)
-  (CC0 1.0). The cutlery symbol appears to be the "cutlery" glyph of Font Awesome 4
-  (SIL Open Font License 1.1), whose terms are not changed by this project's license.
+  `mipmap*/ic_launcher*`, `drawable/ic_notification.png`): Own icon design based on Nextcloud icon and Material Icons Flatware Icon
 - **Libraries** used by the app (AndroidX, Jetpack Compose, OkHttp, Coil, kotlinx) are not
   part of this repository; they are licensed under the Apache License 2.0, which is
   compatible with GPL-3.0.
