@@ -13,6 +13,9 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonElement
+import java.io.IOException
 
 /** Client for the Nextcloud Cookbook app's REST API (/apps/cookbook/api). */
 class CookbookApi(
@@ -30,25 +33,44 @@ class CookbookApi(
     private fun url(vararg segments: String): HttpUrl =
         base.newBuilder().apply { segments.forEach { addPathSegment(it) } }.build()
 
-    private suspend fun getJson(url: HttpUrl, cache: Boolean = true): kotlinx.serialization.json.JsonElement {
-        val text = try {
-            client.fetch(Request.Builder().url(url).get().build()).also { body ->
-                if (cache && store != null) {
-                    store.write(url, body)
-                    store.markOnline()
-                }
-            }
-        } catch (e: java.io.IOException) {
-            // No connection (or the server/proxy is down): fall back to the stored answer.
-            val unreachable = e !is HttpException || e.code in 502..504
-            val stored = if (cache && unreachable) store?.read(url) else null
-            stored?.also { store?.markOffline() } ?: throw e
-        }
-        return json.parseToJsonElement(text)
+    /** An answer and whether it came from the server (false: the offline copy). */
+    data class Fetched(val json: JsonElement, val fromServer: Boolean)
+
+    private fun parse(body: String): JsonElement = try {
+        json.parseToJsonElement(body)
+    } catch (e: SerializationException) {
+        // E.g. the HTML login page of a hotel Wi-Fi with status 200.
+        throw InvalidResponseException("Unexpected answer: ${body.take(80)}")
     }
 
-    private suspend fun getArray(url: HttpUrl, cache: Boolean = true): List<JsonObject> =
-        (getJson(url, cache) as? JsonArray)?.filterIsInstance<JsonObject>().orEmpty()
+    /**
+     * GET with offline copy: a valid answer is stored ([cache]); if the server is
+     * unreachable, the stored answer is used ([fallback]). Parsing happens before
+     * storing, so a non-JSON answer never replaces a good copy.
+     */
+    private suspend fun fetchJson(url: HttpUrl, cache: Boolean = true, fallback: Boolean = cache): Fetched {
+        try {
+            val body = client.fetch(Request.Builder().url(url).get().build())
+            val parsed = parse(body)
+            if (cache && store != null) {
+                store.write(url, body)
+                store.markOnline()
+            }
+            return Fetched(parsed, fromServer = true)
+        } catch (e: IOException) {
+            if (!fallback || !isUnreachable(e)) throw e
+            val stored = store?.read(url) ?: throw e
+            val parsed = runCatching { parse(stored) }.getOrElse { throw e }
+            store?.markOffline()
+            return Fetched(parsed, fromServer = false)
+        }
+    }
+
+    private suspend fun getJson(url: HttpUrl, cache: Boolean = true): JsonElement = fetchJson(url, cache).json
+
+    private fun JsonElement.objects(): List<JsonObject> = (this as? JsonArray)?.filterIsInstance<JsonObject>().orEmpty()
+
+    private suspend fun getArray(url: HttpUrl, cache: Boolean = true): List<JsonObject> = getJson(url, cache).objects()
 
     /** URL of a full recipe, also used as key of its offline copy. */
     fun recipeUrl(id: String): HttpUrl = url("api", "v1", "recipes", id)
@@ -66,6 +88,14 @@ class CookbookApi(
 
     suspend fun allRecipes(): List<RecipeStub> =
         getArray(url("api", "v1", "recipes")).map(::recipeStubFrom)
+
+    /** All recipes straight from the server (stored as offline copy); throws if unreachable. */
+    suspend fun allRecipesFromServer(): List<RecipeStub> =
+        fetchJson(url("api", "v1", "recipes"), cache = true, fallback = false).json.objects().map(::recipeStubFrom)
+
+    /** A recipe straight from the server (stored as offline copy); throws if unreachable. */
+    suspend fun recipeFromServer(id: String): Recipe =
+        Recipe(fetchJson(recipeUrl(id), cache = true, fallback = false).json as JsonObject)
 
     /** All keywords with their recipe counts (same shape as categories). */
     suspend fun keywords(): List<Category> =
@@ -91,8 +121,11 @@ class CookbookApi(
     /** Reads the id the server returns after saving (a bare number or a JSON value). */
     private fun parseId(response: String): String {
         val trimmed = response.trim()
-        return runCatching { (json.parseToJsonElement(trimmed) as? JsonPrimitive)?.contentOrNull }.getOrNull()
+        val id = runCatching { (json.parseToJsonElement(trimmed) as? JsonPrimitive)?.contentOrNull }.getOrNull()
             ?: trimmed.trim('"')
+        // Anything else (e.g. an HTML page) means the answer did not come from Cookbook.
+        if (id.isNotEmpty() && !id.all { it.isDigit() }) throw InvalidResponseException("Unexpected answer: ${id.take(80)}")
+        return id
     }
 
     /** Creates a recipe and returns its new id. */

@@ -62,11 +62,12 @@ import de.ex_parrot.cookbook.ui.components.ErrorView
 import de.ex_parrot.cookbook.ui.components.Loadable
 import de.ex_parrot.cookbook.ui.components.LoadingView
 import de.ex_parrot.cookbook.ui.components.RecipeImage
+import de.ex_parrot.cookbook.data.Category
 
 @Composable
 fun categoryTitle(name: String): String = when (name) {
     ALL_RECIPES -> stringResource(R.string.category_all)
-    de.ex_parrot.cookbook.data.Category.UNCATEGORIZED_LIST_NAME -> stringResource(R.string.category_uncategorized)
+    Category.UNCATEGORIZED_LIST_NAME -> stringResource(R.string.category_uncategorized)
     else -> name
 }
 

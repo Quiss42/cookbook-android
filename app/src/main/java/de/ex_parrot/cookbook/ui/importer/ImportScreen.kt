@@ -44,6 +44,7 @@ import de.ex_parrot.cookbook.data.Recipe
 import de.ex_parrot.cookbook.ui.components.ErrorDetails
 import de.ex_parrot.cookbook.ui.components.errorMessage
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 /** Finds the first http(s) link in shared text such as "Great recipe! https://…". */
 fun extractUrl(text: String): String? =
@@ -79,7 +80,7 @@ class ImportViewModel(private val repository: CookbookRepository, initialUrl: St
             state = ImportState.Importing
             state = try {
                 ImportState.Done(repository.importRecipe(target))
-            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
                 ImportState.Failed(e)

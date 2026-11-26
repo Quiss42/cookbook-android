@@ -59,6 +59,12 @@ import de.ex_parrot.cookbook.ui.components.ErrorView
 import de.ex_parrot.cookbook.ui.components.Loadable
 import de.ex_parrot.cookbook.ui.components.LoadingView
 import de.ex_parrot.cookbook.ui.components.errorMessage
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import de.ex_parrot.cookbook.data.SHOWN_NUTRITION_KEYS
+import de.ex_parrot.cookbook.data.localizeDecimals
+import de.ex_parrot.cookbook.ui.recipe.nutritionLabel
 
 @Composable
 fun EditRecipeScreen(
@@ -73,11 +79,11 @@ fun EditRecipeScreen(
 
     BackHandler(onBack = tryClose)
 
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     LaunchedEffect(viewModel.saveState) {
         (viewModel.saveState as? SaveState.Saved)?.let {
             if (it.queued) {
-                android.widget.Toast.makeText(context, R.string.offline_saved, android.widget.Toast.LENGTH_LONG).show()
+                Toast.makeText(context, R.string.offline_saved, Toast.LENGTH_LONG).show()
             }
             onSaved(it.id, viewModel.name.trim())
         }
@@ -207,11 +213,11 @@ private fun EditForm(vm: EditRecipeViewModel, imageLoader: coil3.ImageLoader, mo
         ListEditor(vm.instructions, stringResource(R.string.edit_add_step), multiLine = true, numbered = true)
 
         SectionTitle(stringResource(R.string.nutrition))
-        de.ex_parrot.cookbook.data.SHOWN_NUTRITION_KEYS.forEach { key ->
+        SHOWN_NUTRITION_KEYS.forEach { key ->
             OutlinedTextField(
                 value = vm.nutrition[key].orEmpty(),
                 onValueChange = { vm.nutrition[key] = it },
-                label = { Text(de.ex_parrot.cookbook.ui.recipe.nutritionLabel(key)) },
+                label = { Text(nutritionLabel(key)) },
                 placeholder = { Text(if (key == "calories") "450 kcal" else "12 g") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -293,7 +299,7 @@ private fun HiddenEntriesSection(vm: EditRecipeViewModel) {
                 Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
                     Text(
                         if (entry.isNutrition) {
-                            stringResource(R.string.edit_hidden_nutrition, de.ex_parrot.cookbook.ui.recipe.nutritionLabel(entry.key))
+                            stringResource(R.string.edit_hidden_nutrition, nutritionLabel(entry.key))
                         } else {
                             entry.key
                         },
@@ -304,7 +310,7 @@ private fun HiddenEntriesSection(vm: EditRecipeViewModel) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 IconButton(onClick = { vm.removeHidden(entry) }) {
@@ -368,7 +374,7 @@ private fun ListEditor(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEachIndexed { index, value ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val localized = if (flagDecimals) de.ex_parrot.cookbook.data.localizeDecimals(value) else value
+                val localized = if (flagDecimals) localizeDecimals(value) else value
                 OutlinedTextField(
                     value = value,
                     onValueChange = { items[index] = it },

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.CancellationException
 
 /** Pseudo category name for "all recipes". */
 const val ALL_RECIPES = "@all@"
@@ -46,7 +47,7 @@ class CategoriesViewModel(private val repository: CookbookRepository) : ViewMode
                 val categories = repository.categories(refresh)
                 _state.value = Loadable.Ready(CategoryOverview(categories, categories.sumOf { it.recipeCount }))
                 loadCovers(categories, refresh)
-            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
                 _state.value = if (current is Loadable.Ready) current.copy(refreshing = false) else Loadable.Failed(e)
@@ -90,7 +91,7 @@ class RecipeListViewModel(
                 val recipes = if (category == ALL_RECIPES) repository.allRecipes(refresh)
                 else repository.recipesInCategory(category, refresh)
                 _state.value = Loadable.Ready(recipes)
-            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
                 _state.value = if (current is Loadable.Ready) current.copy(refreshing = false) else Loadable.Failed(e)

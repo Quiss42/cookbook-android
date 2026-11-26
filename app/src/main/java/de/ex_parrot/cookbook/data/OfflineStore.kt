@@ -29,6 +29,7 @@ class OfflineStore(context: Context, account: Account) {
     private val responses = File(dir, "responses").apply { mkdirs() }
     private val indexFile = File(dir, "index.json")
     private val lastSyncFile = File(dir, "last_sync")
+    private val idMapFile = File(dir, "uploaded_ids.json")
 
     /** Changes made offline, waiting for upload. */
     val pending = PendingStore(File(dir, "pending.json"), File(dir, "pending_images"))
@@ -43,11 +44,7 @@ class OfflineStore(context: Context, account: Account) {
     private fun fileFor(url: HttpUrl) = File(responses, sha1(url.encodedPath + "?" + url.encodedQuery.orEmpty()))
 
     suspend fun write(url: HttpUrl, body: String) = withContext(Dispatchers.IO) {
-        val target = fileFor(url)
-        val temp = File(target.path + ".tmp")
-        temp.writeText(body)
-        temp.renameTo(target)
-        Unit
+        fileFor(url).writeTextAtomically(body)
     }
 
     suspend fun read(url: HttpUrl): String? = withContext(Dispatchers.IO) {
@@ -64,15 +61,23 @@ class OfflineStore(context: Context, account: Account) {
         runCatching { Json.decodeFromString<Map<String, String>>(indexFile.readText()) }.getOrDefault(emptyMap())
 
     suspend fun writeIndex(index: Map<String, String>) = withContext(Dispatchers.IO) {
-        indexFile.writeText(Json.encodeToString(index))
+        indexFile.writeTextAtomically(Json.encodeToString(index))
         _status.value = _status.value.copy(recipeCount = index.size)
+    }
+
+    /** Offline ids of uploaded recipes -> server ids, so old links keep working after a restart. */
+    fun readIdMap(): Map<String, String> =
+        runCatching { Json.decodeFromString<Map<String, String>>(idMapFile.readText()) }.getOrDefault(emptyMap())
+
+    fun writeIdMap(map: Map<String, String>) {
+        idMapFile.writeTextAtomically(Json.encodeToString(map))
     }
 
     private fun readLastSync(): Long? = runCatching { lastSyncFile.readText().trim().toLong() }.getOrNull()
 
     suspend fun markSynced() = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        lastSyncFile.writeText(now.toString())
+        lastSyncFile.writeTextAtomically(now.toString())
         _status.value = _status.value.copy(lastSync = now)
     }
 

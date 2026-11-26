@@ -17,13 +17,22 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
+import java.io.InputStream
+
+/** A problem with the content itself (not the connection): retrying will not help. */
+open class ContentException(message: String) : IOException(message)
 
 /** Thrown when a web page or file does not contain a usable image. */
-class NoImageException : IOException("No image found")
+class NoImageException : ContentException("No image found")
+
+/** Thrown when a picture on the web is larger than [ImageTools.MAX_DOWNLOAD_BYTES]. */
+class ImageTooLargeException : ContentException("Image too large")
 
 /** Prepares images on the phone before they are uploaded to Nextcloud. */
 object ImageTools {
     private const val MAX_SIDE = 2048
+    /** Downloads from the web are cut off at this size. */
+    const val MAX_DOWNLOAD_BYTES = 20L * 1024 * 1024
     private const val JPEG_QUALITY = 85
 
     /** A browser-like user agent: some sites refuse images to unknown clients. */
@@ -32,6 +41,12 @@ object ImageTools {
 
     /** Folder for camera photos and prepared images (shared via FileProvider). */
     fun imageDir(context: Context): File = File(context.cacheDir, "images_upload").apply { mkdirs() }
+
+    /** Deletes prepared pictures and camera photos older than a day (queued photos live elsewhere). */
+    fun cleanUp(context: Context, maxAgeMillis: Long = 24L * 60 * 60 * 1000) {
+        val limit = System.currentTimeMillis() - maxAgeMillis
+        File(context.cacheDir, "images_upload").listFiles()?.filter { it.lastModified() < limit }?.forEach { it.delete() }
+    }
 
     fun newCameraFile(context: Context): File = File(imageDir(context), "camera_${System.currentTimeMillis()}.jpg")
 
@@ -126,18 +141,36 @@ object ImageTools {
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw HttpException(response.code, "HTTP ${response.code}")
             val body = response.body ?: throw NoImageException()
-            return body.bytes() to body.contentType()?.let { "${it.type}/${it.subtype}" }
+            if (body.contentLength() > MAX_DOWNLOAD_BYTES) throw ImageTooLargeException()
+            val bytes = body.byteStream().use { readLimited(it, MAX_DOWNLOAD_BYTES) }
+            return bytes to body.contentType()?.let { "${it.type}/${it.subtype}" }
         }
     }
+}
 
-    private fun findPageImage(html: String, pageUrl: String): String? {
-        val patterns = listOf(
-            Regex("""<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']""", RegexOption.IGNORE_CASE),
-            Regex("""<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']""", RegexOption.IGNORE_CASE),
-            Regex("""<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']""", RegexOption.IGNORE_CASE),
-        )
-        val found = patterns.firstNotNullOfOrNull { it.find(html)?.groupValues?.get(1) } ?: return null
-        val cleaned = found.replace("&amp;", "&")
-        return pageUrl.toHttpUrlOrNull()?.resolve(cleaned)?.toString() ?: cleaned
+/** Reads at most [limit] bytes; throws [ImageTooLargeException] if there is more. */
+internal fun readLimited(input: InputStream, limit: Long): ByteArray {
+    val out = ByteArrayOutputStream()
+    val buffer = ByteArray(64 * 1024)
+    var total = 0L
+    while (true) {
+        val n = input.read(buffer)
+        if (n < 0) break
+        total += n
+        if (total > limit) throw ImageTooLargeException()
+        out.write(buffer, 0, n)
     }
+    return out.toByteArray()
+}
+
+/** The preview image (og:image, twitter:image) of a web page, as absolute address. */
+internal fun findPageImage(html: String, pageUrl: String): String? {
+    val patterns = listOf(
+        Regex("""<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']""", RegexOption.IGNORE_CASE),
+        Regex("""<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']""", RegexOption.IGNORE_CASE),
+        Regex("""<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']""", RegexOption.IGNORE_CASE),
+    )
+    val found = patterns.firstNotNullOfOrNull { it.find(html)?.groupValues?.get(1) } ?: return null
+    val cleaned = found.replace("&amp;", "&")
+    return pageUrl.toHttpUrlOrNull()?.resolve(cleaned)?.toString() ?: cleaned
 }

@@ -16,7 +16,7 @@ object UpdateChecker {
 
     /** Returns the newer release, or null if [currentVersion] is up to date. Throws on network errors. */
     suspend fun check(currentVersion: String): UpdateInfo? {
-        val body = Http.client(false).fetch(
+        val body = Http.client().fetch(
             Request.Builder()
                 .url(LATEST_RELEASE_URL)
                 .header("Accept", "application/vnd.github+json")

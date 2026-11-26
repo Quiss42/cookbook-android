@@ -16,6 +16,12 @@ val keystoreProperties = Properties().apply {
 fun signingValue(propKey: String, envKey: String): String? =
     keystoreProperties.getProperty(propKey) ?: System.getenv(envKey)
 
+/** 1.2.3 -> 1002003: always grows with the version, so updates install over older builds. */
+fun versionCodeOf(name: String): Int {
+    val parts = name.substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 } + listOf(0, 0, 0)
+    return parts[0] * 1_000_000 + parts[1] * 1_000 + parts[2]
+}
+
 val releaseStoreFile: String? = signingValue("storeFile", "ANDROID_KEYSTORE_PATH")
 val hasReleaseSigning = releaseStoreFile != null && file(releaseStoreFile).exists()
 
@@ -27,8 +33,8 @@ android {
         applicationId = "de.ex_parrot.cookbook"
         minSdk = 26
         targetSdk = 36
-        versionCode = (project.findProperty("VERSION_CODE") as String?)?.toInt() ?: 1
         versionName = project.findProperty("APP_VERSION_NAME") as String? ?: "0.0.0"
+        versionCode = versionCodeOf(versionName!!)
     }
 
     signingConfigs {
@@ -67,6 +73,10 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     lint {
         // Lint runs separately; don't let it block release builds.
         checkReleaseBuilds = false
@@ -103,5 +113,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    implementation(libs.androidx.work.runtime)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

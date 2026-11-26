@@ -84,6 +84,8 @@ import de.ex_parrot.cookbook.ui.components.RecipeImage
 import de.ex_parrot.cookbook.ui.components.errorMessage
 import de.ex_parrot.cookbook.ui.importer.extractUrl
 import de.ex_parrot.cookbook.ui.importer.normalizeWebUrl
+import androidx.compose.ui.graphics.vector.ImageVector
+import kotlinx.coroutines.CancellationException
 
 /** Image preview with the four ways to choose a picture. */
 @Composable
@@ -191,7 +193,7 @@ fun ImageSection(vm: EditRecipeViewModel, imageLoader: ImageLoader) {
 }
 
 @Composable
-private fun ImageChip(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun ImageChip(icon: ImageVector, label: String, onClick: () -> Unit) {
     AssistChip(onClick = onClick, label = { Text(label) }, leadingIcon = { Icon(icon, null, Modifier.size(18.dp)) })
 }
 
@@ -246,7 +248,7 @@ private fun CloudImagePicker(
         state = Loadable.Loading
         state = try {
             Loadable.Ready(files.list(path))
-        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
             Loadable.Failed(e)

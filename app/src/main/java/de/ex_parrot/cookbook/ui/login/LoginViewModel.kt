@@ -16,6 +16,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import de.ex_parrot.cookbook.data.HttpException
+import java.io.IOException
+import java.net.URI
+import kotlinx.coroutines.CancellationException
 
 sealed interface LoginStep {
     data object Idle : LoginStep
@@ -33,6 +37,14 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
     var step by mutableStateOf<LoginStep>(LoginStep.Idle)
         private set
 
+    init {
+        // After an expired login: offer the same server again.
+        sessionManager.reloginHint?.let {
+            server = it.server
+            trustAllCerts = it.trustAllCerts
+        }
+    }
+
     private val openUrlChannel = Channel<String>(Channel.BUFFERED)
     /** URLs the screen should open in the browser. */
     val openUrl = openUrlChannel.receiveAsFlow()
@@ -45,6 +57,8 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
     fun submit() {
         if (!canSubmit) return
         val serverUrl = normalizeServerUrl(server)
+        // A new login accepts a renewed self-signed certificate.
+        if (trustAllCerts) runCatching { Http.pins.forget(URI(serverUrl).host) }
         job?.cancel()
         job = viewModelScope.launch {
             step = LoginStep.Working
@@ -54,7 +68,7 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
                 } else {
                     browserLogin(serverUrl)
                 }
-            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
                 step = LoginStep.Failed(e)
@@ -63,7 +77,7 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
     }
 
     private suspend fun browserLogin(serverUrl: String) {
-        val flow = LoginFlow(Http.client(trustAllCerts))
+        val flow = LoginFlow(Http.client(serverUrl, trustAllCerts))
         val start = flow.start(serverUrl)
         step = LoginStep.WaitingForBrowser(start.login)
         openUrlChannel.send(start.login)
@@ -75,8 +89,8 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
             delay(2_000)
             val result = try {
                 flow.poll(start)
-            } catch (e: java.io.IOException) {
-                if (e is de.ex_parrot.cookbook.data.HttpException) throw e
+            } catch (e: IOException) {
+                if (e is HttpException) throw e
                 null
             }
             if (result != null) {
@@ -97,8 +111,8 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
             try {
                 api.checkConnection()
                 break
-            } catch (e: java.io.IOException) {
-                if (e is de.ex_parrot.cookbook.data.HttpException || ++attempt >= 3) throw e
+            } catch (e: IOException) {
+                if (e is HttpException || ++attempt >= 3) throw e
                 delay(1_500)
             }
         }

@@ -3,6 +3,7 @@ package de.ex_parrot.cookbook
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
@@ -14,11 +15,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -28,7 +37,6 @@ import de.ex_parrot.cookbook.data.AppSettings
 import de.ex_parrot.cookbook.data.Session
 import de.ex_parrot.cookbook.data.SessionState
 import de.ex_parrot.cookbook.data.UpdateChecker
-import de.ex_parrot.cookbook.data.UpdateInfo
 import de.ex_parrot.cookbook.timer.TimerController
 import de.ex_parrot.cookbook.timer.TimersScreen
 import de.ex_parrot.cookbook.ui.browse.CategoriesScreen
@@ -36,6 +44,10 @@ import de.ex_parrot.cookbook.ui.browse.CategoriesViewModel
 import de.ex_parrot.cookbook.ui.browse.RecipeListScreen
 import de.ex_parrot.cookbook.ui.browse.RecipeListViewModel
 import de.ex_parrot.cookbook.ui.components.LoadingView
+import de.ex_parrot.cookbook.ui.components.OfflineBanner
+import de.ex_parrot.cookbook.ui.dialogs.ConflictDialog
+import de.ex_parrot.cookbook.ui.dialogs.LoginExpiredDialog
+import de.ex_parrot.cookbook.ui.dialogs.UpdateDialog
 import de.ex_parrot.cookbook.ui.edit.EditRecipeScreen
 import de.ex_parrot.cookbook.ui.edit.EditRecipeViewModel
 import de.ex_parrot.cookbook.ui.importer.ImportScreen
@@ -49,6 +61,7 @@ import de.ex_parrot.cookbook.ui.search.SearchScreen
 import de.ex_parrot.cookbook.ui.search.SearchViewModel
 import de.ex_parrot.cookbook.ui.settings.SettingsScreen
 import de.ex_parrot.cookbook.ui.theme.CookbookTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -109,7 +122,7 @@ class MainActivity : ComponentActivity() {
                         info = info,
                         onInstall = {
                             container.availableUpdate.value = null
-                            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(info.downloadUrl)))
+                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl)))
                         },
                         onDismiss = { container.availableUpdate.value = null },
                     )
@@ -140,7 +153,12 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
     val nav = rememberNavController()
     val context = LocalContext.current
     val repository = session.repository
-    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        // Without notifications a timer ends silently.
+        if (!granted || !TimerController.canAlert(context)) {
+            Toast.makeText(context, R.string.timer_notifications_off, Toast.LENGTH_LONG).show()
+        }
+    }
 
     // Requests coming from outside the app (share menu, notifications).
     val pendingImport by container.pendingImportUrl.collectAsStateWithLifecycle()
@@ -174,38 +192,48 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
     }
 
     // Offline changes that clash with changes on the server: ask the user.
+    var resolving by remember { mutableStateOf(false) }
     pendingChanges.firstOrNull { it.conflict }?.let { change ->
+        val copySuffix = stringResource(R.string.conflict_copy_suffix)
         ConflictDialog(
             change = change,
+            busy = resolving,
             onChoice = { choice ->
+                if (resolving) return@ConflictDialog
+                resolving = true
                 container.scope.launch {
                     try {
-                        session.repository.resolveConflict(change, choice)
-                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        session.repository.resolveConflict(change, choice, copySuffix)
+                    } catch (e: CancellationException) {
                         throw e
                     } catch (e: Throwable) {
                         Toast.makeText(context, R.string.conflict_failed, Toast.LENGTH_LONG).show()
+                    } finally {
+                        resolving = false
                     }
                 }
             },
         )
     }
-    androidx.compose.foundation.layout.Column {
+
+    // The app password was revoked: offer to log in again (offline changes are kept).
+    val loginExpired by session.loginExpired.collectAsStateWithLifecycle()
+    var loginExpiredDismissed by remember(session) { mutableStateOf(false) }
+    if (loginExpired && !loginExpiredDismissed) {
+        LoginExpiredDialog(
+            onRelogin = { container.scope.launch { container.sessionManager.relogin() } },
+            onDismiss = { loginExpiredDismissed = true },
+        )
+    }
+
+    Column {
     NavHost(
         navController = nav,
         startDestination = CategoriesRoute,
         // The banner below takes the navigation bar space while it is shown.
-        modifier = androidx.compose.ui.Modifier
+        modifier = Modifier
             .weight(1f)
-            .then(
-                if (offline) {
-                    androidx.compose.ui.Modifier.consumeWindowInsets(
-                        androidx.compose.foundation.layout.WindowInsets.navigationBars,
-                    )
-                } else {
-                    androidx.compose.ui.Modifier
-                },
-            ),
+            .then(if (offline) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier),
     ) {
         composable<CategoriesRoute> {
             CategoriesScreen(
@@ -235,7 +263,7 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
             RecipeScreen(
                 session = session,
                 title = route.name,
-                viewModel = viewModel { RecipeViewModel(repository, route.id) },
+                viewModel = viewModel { RecipeViewModel(repository, route.id, container.cookingProgress) },
                 keepScreenOn = settings.keepScreenOn,
                 onBack = { nav.popBackStack() },
                 onEdit = { nav.navigate(EditRecipeRoute(route.id)) },
@@ -245,6 +273,8 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
                         PackageManager.PERMISSION_GRANTED
                     ) {
                         notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else if (!TimerController.canAlert(context)) {
+                        Toast.makeText(context, R.string.timer_notifications_off, Toast.LENGTH_LONG).show()
                     }
                     container.scope.launch {
                         TimerController.start(context.applicationContext, recipe.id, recipe.name, duration.toMillis())
@@ -258,7 +288,7 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
             EditRecipeScreen(
                 imageLoader = session.imageLoader,
                 viewModel = viewModel {
-                    EditRecipeViewModel(repository, session.files, context.applicationContext, route.id)
+                    EditRecipeViewModel(repository, session.files, context.applicationContext, route.id, createSavedStateHandle())
                 },
                 onSaved = { id, name ->
                     if (route.id == null) {
@@ -306,66 +336,6 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
             )
         }
     }
-    de.ex_parrot.cookbook.ui.components.OfflineBanner(session)
+    OfflineBanner(session)
     }
-}
-
-@Composable
-private fun UpdateDialog(info: UpdateInfo, onInstall: () -> Unit, onDismiss: () -> Unit) {
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.update_found_title)) },
-        text = {
-            androidx.compose.material3.Text(
-                androidx.compose.ui.res.stringResource(R.string.update_found_text, info.version, BuildConfig.VERSION_NAME),
-            )
-        },
-        confirmButton = {
-            androidx.compose.material3.TextButton(onClick = onInstall) {
-                androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.yes))
-            }
-        },
-        dismissButton = {
-            androidx.compose.material3.TextButton(onClick = onDismiss) {
-                androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.no))
-            }
-        },
-    )
-}
-
-@Composable
-private fun ConflictDialog(
-    change: de.ex_parrot.cookbook.data.PendingChange,
-    onChoice: (de.ex_parrot.cookbook.data.ConflictChoice) -> Unit,
-) {
-    val isDelete = change.type == de.ex_parrot.cookbook.data.PendingChange.Type.DELETE
-    androidx.compose.material3.AlertDialog(
-        // Must be decided; dismissing just shows it again later.
-        onDismissRequest = {},
-        title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.conflict_title, change.name)) },
-        text = {
-            androidx.compose.material3.Text(
-                androidx.compose.ui.res.stringResource(if (isDelete) R.string.conflict_text_delete else R.string.conflict_text_update),
-            )
-        },
-        confirmButton = {
-            androidx.compose.foundation.layout.Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
-                androidx.compose.material3.TextButton(onClick = { onChoice(de.ex_parrot.cookbook.data.ConflictChoice.MINE) }) {
-                    androidx.compose.material3.Text(
-                        androidx.compose.ui.res.stringResource(if (isDelete) R.string.conflict_delete_anyway else R.string.conflict_mine),
-                    )
-                }
-                androidx.compose.material3.TextButton(onClick = { onChoice(de.ex_parrot.cookbook.data.ConflictChoice.SERVER) }) {
-                    androidx.compose.material3.Text(
-                        androidx.compose.ui.res.stringResource(if (isDelete) R.string.conflict_keep_recipe else R.string.conflict_server),
-                    )
-                }
-                if (!isDelete) {
-                    androidx.compose.material3.TextButton(onClick = { onChoice(de.ex_parrot.cookbook.data.ConflictChoice.BOTH) }) {
-                        androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(R.string.conflict_both))
-                    }
-                }
-            }
-        },
-    )
 }

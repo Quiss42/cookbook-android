@@ -34,9 +34,15 @@ import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
 import coil3.compose.SubcomposeAsyncImage
 import de.ex_parrot.cookbook.R
+import de.ex_parrot.cookbook.data.CertificateChangedException
+import de.ex_parrot.cookbook.data.ImageTooLargeException
+import de.ex_parrot.cookbook.data.InvalidResponseException
 import de.ex_parrot.cookbook.data.HttpException
 import java.io.IOException
 import javax.net.ssl.SSLException
+import de.ex_parrot.cookbook.data.Session
+import java.text.DateFormat
+import java.util.Date
 
 /** Simple state holder for data loaded from the server. */
 sealed interface Loadable<out T> {
@@ -47,6 +53,9 @@ sealed interface Loadable<out T> {
 
 @Composable
 fun errorMessage(error: Throwable): String = when {
+    error.causes().any { it is CertificateChangedException } -> stringResource(R.string.error_certificate_changed)
+    error is ImageTooLargeException -> stringResource(R.string.error_image_too_large)
+    error is InvalidResponseException -> stringResource(R.string.error_invalid_response)
     error is HttpException && error.code == 401 -> stringResource(R.string.error_unauthorized)
     error is HttpException && error.code == 404 -> stringResource(R.string.error_not_found)
     error is HttpException -> stringResource(R.string.error_http, error.code)
@@ -54,6 +63,8 @@ fun errorMessage(error: Throwable): String = when {
     error is IOException -> stringResource(R.string.error_network)
     else -> error.message ?: error.toString()
 }
+
+private fun Throwable.causes(): Sequence<Throwable> = generateSequence(this) { it.cause?.takeIf { c -> c !== it } }
 
 @Composable
 fun LoadingView(modifier: Modifier = Modifier) {
@@ -136,7 +147,7 @@ fun RecipeImage(
 
 /** Shown while the data comes from the phone because the server is unreachable. */
 @Composable
-fun OfflineBanner(session: de.ex_parrot.cookbook.data.Session, modifier: Modifier = Modifier) {
+fun OfflineBanner(session: Session, modifier: Modifier = Modifier) {
     val offline by session.offlineStore.offline.collectAsStateWithLifecycle()
     val status by session.offlineStore.status.collectAsStateWithLifecycle()
     val pendingChanges by session.offlineStore.pending.changes.collectAsStateWithLifecycle()
@@ -182,8 +193,8 @@ fun OfflineBanner(session: de.ex_parrot.cookbook.data.Session, modifier: Modifie
 }
 
 fun formatDateTime(millis: Long): String =
-    java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
-        .format(java.util.Date(millis))
+    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+        .format(Date(millis))
 
 /** Technical details, shown small, to help with bug reports. */
 @Composable

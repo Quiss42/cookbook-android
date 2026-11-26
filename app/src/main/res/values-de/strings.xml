@@ -6,7 +6,7 @@
     <string name="more">Weitere Optionen</string>
     <string name="retry">Erneut versuchen</string>
 
-    <string name="error_unauthorized">Die Anmeldung ist nicht mehr gültig. Bitte ab- und wieder anmelden.</string>
+    <string name="error_unauthorized">Die Anmeldung ist nicht mehr gültig. Bitte neu anmelden.</string>
     <string name="error_not_found">Nicht gefunden. Ist die Cookbook-App in dieser Nextcloud installiert?</string>
     <string name="error_http">Der Server hat mit Fehler %1$d geantwortet.</string>
     <string name="error_certificate">Das Zertifikat des Servers konnte nicht überprüft werden.</string>
@@ -22,8 +22,8 @@
     <string name="login_advanced">Erweitert</string>
     <string name="login_use_app_password">App-Passwort eingeben</string>
     <string name="login_use_app_password_hint">Statt der Anmeldung im Browser. Erstellen in Nextcloud unter Einstellungen → Sicherheit.</string>
-    <string name="login_trust_all">Jedes Zertifikat akzeptieren</string>
-    <string name="login_trust_all_hint">Nur für Server mit selbst signiertem Zertifikat. Unsicher: Andere könnten die Verbindung mitlesen.</string>
+    <string name="login_trust_all">Selbst signiertes Zertifikat</string>
+    <string name="login_trust_all_hint">Akzeptiert das Zertifikat des Servers bei der ersten Verbindung und lehnt danach jedes andere ab. Nach dem Erneuern des Zertifikats neu anmelden.</string>
     <string name="login_waiting">Im Browser anmelden und Zugriff erlauben, dann zu dieser App zurückkehren.</string>
     <string name="login_open_browser">Browser öffnen</string>
     <string name="logout">Abmelden</string>
@@ -227,4 +227,15 @@
 
     <string name="image_web_later">Keine Verbindung – das Foto wird heruntergeladen, sobald eine besteht: %1$s</string>
     <string name="upload_image_missing">Foto konnte nicht geladen werden, Rezept ohne Foto hochgeladen (%1$s)</string>
+    <!-- Code review fixes (0.7.0) -->
+    <string name="conflict_copy_suffix">(Handy)</string>
+    <string name="login_expired_title">Anmeldung abgelaufen</string>
+    <string name="login_expired_text">Der Server akzeptiert das App-Passwort nicht mehr, z. B. weil das Gerät in den Nextcloud-Einstellungen entfernt wurde. Melde dich neu an: Offline gemachte Änderungen bleiben erhalten und werden danach hochgeladen.</string>
+    <string name="login_again">Neu anmelden</string>
+    <string name="later">Später</string>
+    <string name="timer_stop">Stopp</string>
+    <string name="timer_notifications_off">Benachrichtigungen sind ausgeschaltet, deshalb klingelt der Timer nicht.</string>
+    <string name="error_certificate_changed">Das Zertifikat des Servers hat sich geändert. Wenn du es erneuert hast, melde dich neu an.</string>
+    <string name="error_image_too_large">Das Bild ist größer als 20 MB.</string>
+    <string name="error_invalid_response">Unerwartete Antwort vom Server, vielleicht eine WLAN-Anmeldeseite.</string>
 </resources>

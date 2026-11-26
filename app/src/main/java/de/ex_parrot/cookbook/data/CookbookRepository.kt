@@ -1,12 +1,19 @@
 package de.ex_parrot.cookbook.data
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
@@ -32,24 +39,26 @@ class CookbookRepository(
     private var allRecipes: List<RecipeStub>? = null
     private val categoryRecipes = ConcurrentHashMap<String, List<RecipeStub>>()
     private val recipes = ConcurrentHashMap<String, Recipe>()
-    /** Offline ids of recipes that have been uploaded meanwhile -> their server ids. */
-    private val uploadedIds = ConcurrentHashMap<String, String>()
+
+    /** Offline ids of recipes that have been uploaded meanwhile -> their server ids (persisted). */
+    private val uploadedIds = ConcurrentHashMap<String, String>(store?.readIdMap().orEmpty())
     private val uploadMutex = Mutex()
 
     private val pending get() = store?.pending
+    private val pendingChanges get() = pending?.changes?.value.orEmpty()
 
     /** Called when a recipe's stored pictures are outdated (set by the session). */
     var onImagesOutdated: (recipeId: String) -> Unit = {}
 
-    /** Called after a change was queued, so the session can try to upload it. */
+    /** Called after a change was queued, so it gets uploaded when possible. */
     var onChangeQueued: () -> Unit = {}
 
     /** Downloads a photo from the web on the phone and prepares it (set by the session). */
     var downloadImage: suspend (url: String) -> File = { throw NoImageException() }
 
-    private val _notices = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 8)
+    private val _notices = MutableSharedFlow<String>(extraBufferCapacity = 8)
     /** Messages about background uploads, e.g. a photo that could not be downloaded. */
-    val notices: kotlinx.coroutines.flow.SharedFlow<String> = _notices
+    val notices: SharedFlow<String> = _notices
 
     private val _changes = MutableStateFlow(0)
     /** Incremented whenever recipes are created, changed or deleted. */
@@ -68,6 +77,11 @@ class CookbookRepository(
 
     private fun resolveId(id: String) = uploadedIds[id] ?: id
 
+    private fun rememberUploaded(localId: String, serverId: String) {
+        uploadedIds[localId] = serverId
+        runCatching { store?.writeIdMap(uploadedIds.toMap()) }
+    }
+
     // ---------------------------------------------------------------- saving
 
     /**
@@ -82,24 +96,24 @@ class CookbookRepository(
         fromCategory: String?,
         /** Web address of a photo still to be downloaded by the phone. */
         webImage: String? = null,
-    ): SaveResult {
+    ): SaveResult = withContext(Dispatchers.IO) {
         val queue = pending
         val target = id?.let(::resolveId)
         // Keep the order: if this recipe already has queued changes, queue this one too.
         if (queue != null && target != null && (target.startsWith(LOCAL_RECIPE_PREFIX) || queue.forRecipe(target) != null)) {
-            return enqueueSave(target, recipe, localImage, baseModified, fromCategory, webImage)
+            return@withContext enqueueSave(target, recipe, localImage, baseModified, fromCategory, webImage)
         }
-        return try {
+        try {
             // A web photo is fetched now; if that fails for lack of connection, everything is queued.
             val photo = localImage ?: webImage?.let { downloadImage(it) }
             val savedId = saveOnline(target, recipe, photo?.absolutePath)
             invalidate(savedId)
             SaveResult(savedId, queued = false)
-        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
             if (queue == null || !isUnreachable(e)) throw e
-            enqueueSave(target, recipe, localImage, baseModified, fromCategory, webImage)
+            enqueueSave(target, recipe, localImage, baseModified, fromCategory, webImage, uncertain = mayHaveReachedServer(e))
         }
     }
 
@@ -128,20 +142,22 @@ class CookbookRepository(
         baseModified: String?,
         fromCategory: String?,
         webImage: String? = null,
+        uncertain: Boolean = false,
     ): SaveResult {
         val queue = pending!!
         val image = localImage?.let(queue::keepImage)
         val newPhoto = image != null || webImage != null
         val name = recipe.string("name")
         val existing = id?.let(queue::forRecipe)
+        val now = System.currentTimeMillis()
         val resultId: String
         when {
             id == null -> {
-                resultId = "$LOCAL_RECIPE_PREFIX${System.currentTimeMillis()}"
+                resultId = "$LOCAL_RECIPE_PREFIX$now"
                 queue.update {
                     it + PendingChange(
                         queue.nextId(), PendingChange.Type.CREATE, resultId, name, recipe,
-                        imageFile = image, imageWebUrl = webImage,
+                        imageFile = image, imageWebUrl = webImage, createdAt = now, uncertain = uncertain,
                     )
                 }
             }
@@ -171,6 +187,7 @@ class CookbookRepository(
                         queue.nextId(), PendingChange.Type.UPDATE, id, name, recipe,
                         imageFile = image, imageWebUrl = webImage,
                         baseModified = baseModified, fromCategory = fromCategory,
+                        createdAt = now, uncertain = uncertain,
                     )
                 }
             }
@@ -181,69 +198,80 @@ class CookbookRepository(
     }
 
     /** Deletes a recipe; without a connection the deletion is queued. Returns true if queued. */
-    suspend fun deleteRecipe(id: String, name: String, category: String, baseModified: String?): Boolean {
-        val queue = pending
-        val target = resolveId(id)
-        val existing = queue?.forRecipe(target)
-        if (queue != null && existing != null) {
-            when (existing.type) {
-                // Never uploaded: just forget it.
-                PendingChange.Type.CREATE -> queue.remove(existing)
-                else -> {
-                    existing.imageFile?.let { File(it).delete() }
-                    queue.update { list ->
-                        list.map { c ->
-                            if (c.id == existing.id) {
-                                c.copy(type = PendingChange.Type.DELETE, recipe = null, imageFile = null, conflict = false, error = null)
-                            } else c
+    suspend fun deleteRecipe(id: String, name: String, category: String, baseModified: String?): Boolean =
+        withContext(Dispatchers.IO) {
+            val queue = pending
+            val target = resolveId(id)
+            val existing = queue?.forRecipe(target)
+            if (queue != null && existing != null) {
+                when (existing.type) {
+                    // Never uploaded: just forget it.
+                    PendingChange.Type.CREATE -> queue.remove(existing)
+                    else -> {
+                        existing.imageFile?.let { File(it).delete() }
+                        queue.update { list ->
+                            list.map { c ->
+                                if (c.id == existing.id) {
+                                    c.copy(
+                                        type = PendingChange.Type.DELETE, recipe = null, imageFile = null,
+                                        imageWebUrl = null, conflict = false, error = null,
+                                    )
+                                } else c
+                            }
                         }
                     }
                 }
+                invalidate(target)
+                onChangeQueued()
+                return@withContext existing.type != PendingChange.Type.CREATE
             }
-            invalidate(target)
-            onChangeQueued()
-            return existing.type != PendingChange.Type.CREATE
-        }
-        return try {
-            api.deleteRecipe(target)
-            invalidate(target)
-            false
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Throwable) {
-            if (queue == null || !isUnreachable(e)) throw e
-            queue.update {
-                it + PendingChange(
-                    queue.nextId(), PendingChange.Type.DELETE, target, name,
-                    baseModified = baseModified, fromCategory = category,
-                )
+            try {
+                api.deleteRecipe(target)
+                invalidate(target)
+                false
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                if (queue == null || !isUnreachable(e)) throw e
+                queue.update {
+                    it + PendingChange(
+                        queue.nextId(), PendingChange.Type.DELETE, target, name,
+                        baseModified = baseModified, fromCategory = category, createdAt = System.currentTimeMillis(),
+                    )
+                }
+                invalidate(target)
+                onChangeQueued()
+                true
             }
-            invalidate(target)
-            onChangeQueued()
-            true
         }
-    }
 
     suspend fun importRecipe(url: String): Recipe = api.importRecipe(url).also { invalidate(it.id) }
 
     // ---------------------------------------------------------------- upload
 
+    /** True while queued changes (other than conflicts) are waiting. */
+    fun hasUploadsWaiting(): Boolean = pendingChanges.any { !it.conflict }
+
     /**
      * Uploads queued changes in order. Stops at the first "not reachable" error.
      * Recipes changed on the server meanwhile are marked as conflicts.
      */
-    suspend fun uploadPending() {
-        val queue = pending ?: return
+    suspend fun uploadPending() = withContext(Dispatchers.IO) {
+        val queue = pending ?: return@withContext
         uploadMutex.withLock {
             for (snapshot in queue.changes.value) {
-                val change = queue.changes.value.firstOrNull { it.id == snapshot.id } ?: continue
+                val change = queue.current(snapshot) ?: continue
                 if (change.conflict) continue
                 try {
                     upload(change)
-                } catch (e: kotlinx.coroutines.CancellationException) {
+                } catch (e: CancellationException) {
                     throw e
                 } catch (e: Throwable) {
-                    if (isUnreachable(e)) return
+                    if (isUnreachable(e)) {
+                        // The request may have arrived although the answer did not: check next time.
+                        if (mayHaveReachedServer(e)) markUncertain(change)
+                        return@withLock
+                    }
                     markError(change, e)
                 }
             }
@@ -260,7 +288,7 @@ class CookbookRepository(
         val url = change.imageWebUrl ?: return null
         return try {
             downloadImage(url).absolutePath
-        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
             if (isUnreachable(e)) throw e
@@ -270,13 +298,12 @@ class CookbookRepository(
     }
 
     private suspend fun upload(change: PendingChange) {
-        val queue = pending!!
         when (change.type) {
             PendingChange.Type.CREATE -> {
-                val newId = saveOnline(null, change.recipe!!, photoFor(change))
-                uploadedIds[change.recipeId] = newId
-                queue.remove(change)
-                invalidate(newId)
+                // After a timed-out attempt the recipe may already exist on the server.
+                val newId = (if (change.uncertain) findCreatedEarlier(change) else null)
+                    ?: saveOnline(null, change.recipe!!, photoFor(change))
+                finishCreate(change, newId)
             }
             PendingChange.Type.UPDATE -> {
                 val server = fetchServerVersion(change.recipeId)
@@ -284,31 +311,73 @@ class CookbookRepository(
                     // Deleted on the server meanwhile: keep the edit as a new recipe.
                     server == null -> {
                         val newId = saveOnline(null, change.recipe!!, photoFor(change))
-                        uploadedIds[change.recipeId] = newId
-                        queue.remove(change)
                         invalidate(change.recipeId)
-                        invalidate(newId)
+                        finishCreate(change, newId)
                     }
+                    // Our own earlier, timed-out save may have arrived after all.
+                    change.uncertain && sameContent(change.recipe, server.raw) -> finishUpdate(change, server.dateModified)
                     changedOnServer(change, server) -> markConflict(change)
                     else -> {
                         saveOnline(change.recipeId, change.recipe!!, photoFor(change))
-                        queue.remove(change)
-                        invalidate(change.recipeId)
+                        finishUpdate(change, null)
                     }
                 }
             }
             PendingChange.Type.DELETE -> {
                 val server = fetchServerVersion(change.recipeId)
                 when {
-                    server == null -> queue.remove(change)
+                    server == null -> pending!!.removeIfUnchanged(change)
                     changedOnServer(change, server) -> markConflict(change)
                     else -> {
                         api.deleteRecipe(change.recipeId)
-                        queue.remove(change)
+                        pending!!.removeIfUnchanged(change)
                         invalidate(change.recipeId)
                     }
                 }
             }
+        }
+    }
+
+    /** A recipe with the same name, which an earlier timed-out attempt may have created. */
+    private suspend fun findCreatedEarlier(change: PendingChange): String? =
+        api.allRecipesFromServer().firstOrNull { it.name == change.name }?.id
+
+    /**
+     * After the recipe of a queued CREATE exists on the server: forget the
+     * entry, or, if it was edited again during the upload, keep that edit as an
+     * UPDATE of the new recipe.
+     */
+    private suspend fun finishCreate(change: PendingChange, newId: String) {
+        val queue = pending!!
+        rememberUploaded(change.recipeId, newId)
+        if (queue.removeIfUnchanged(change)) {
+            change.imageFile?.let { File(it).delete() }
+        } else {
+            val base = fetchServerVersion(newId)?.dateModified
+            convertRemaining(change) { it.copy(type = PendingChange.Type.UPDATE, recipeId = newId, baseModified = base) }
+        }
+        invalidate(newId)
+    }
+
+    /** After an UPDATE was saved: forget it, or keep a newer edit with an updated conflict base. */
+    private suspend fun finishUpdate(change: PendingChange, knownModified: String?) {
+        val queue = pending!!
+        if (queue.removeIfUnchanged(change)) {
+            change.imageFile?.let { File(it).delete() }
+        } else {
+            val base = knownModified ?: fetchServerVersion(change.recipeId)?.dateModified
+            convertRemaining(change) { it.copy(baseModified = base) }
+        }
+        invalidate(change.recipeId)
+    }
+
+    private fun convertRemaining(uploaded: PendingChange, transform: (PendingChange) -> PendingChange) {
+        val queue = pending!!
+        val current = queue.current(uploaded) ?: return
+        // The uploaded photo is no longer needed if the newer edit has its own.
+        uploaded.imageFile?.takeIf { it != current.imageFile }?.let { File(it).delete() }
+        queue.update { list ->
+            list.map { if (it.id == uploaded.id) transform(it).copy(uncertain = false, error = null, conflict = false) else it }
         }
     }
 
@@ -327,41 +396,53 @@ class CookbookRepository(
         invalidate(change.recipeId)
     }
 
+    private fun markUncertain(change: PendingChange) {
+        pending?.update { list -> list.map { if (it.id == change.id) it.copy(uncertain = true) else it } }
+    }
+
     private fun markError(change: PendingChange, e: Throwable) {
         val message = (e.message ?: e.javaClass.simpleName).take(200)
         pending?.update { list -> list.map { if (it.id == change.id) it.copy(error = message) else it } }
     }
 
-    /** Applies the user's decision for a conflicting change (needs a connection). */
-    suspend fun resolveConflict(change: PendingChange, choice: ConflictChoice) {
-        val queue = pending ?: return
-        when (choice) {
-            ConflictChoice.SERVER -> queue.remove(change)
-            ConflictChoice.MINE -> {
-                if (change.type == PendingChange.Type.DELETE) {
-                    try {
-                        api.deleteRecipe(change.recipeId)
-                    } catch (e: HttpException) {
-                        if (e.code != 404) throw e
+    /**
+     * Applies the user's decision for a conflicting change (needs a connection).
+     * [copySuffix] is appended to the name of the copy for [ConflictChoice.BOTH].
+     */
+    suspend fun resolveConflict(change: PendingChange, choice: ConflictChoice, copySuffix: String) =
+        withContext(Dispatchers.IO) {
+            val queue = pending ?: return@withContext
+            uploadMutex.withLock {
+                // Already resolved (e.g. a second tap): nothing to do.
+                if (queue.current(change)?.conflict != true) return@withLock
+                when (choice) {
+                    ConflictChoice.SERVER -> queue.remove(change)
+                    ConflictChoice.MINE -> {
+                        if (change.type == PendingChange.Type.DELETE) {
+                            try {
+                                api.deleteRecipe(change.recipeId)
+                            } catch (e: HttpException) {
+                                if (e.code != 404) throw e
+                            }
+                        } else {
+                            saveOnline(change.recipeId, change.recipe!!, photoFor(change))
+                        }
+                        queue.remove(change)
                     }
-                } else {
-                    saveOnline(change.recipeId, change.recipe!!, photoFor(change))
+                    ConflictChoice.BOTH -> {
+                        if (change.type == PendingChange.Type.UPDATE) {
+                            val copy = JsonObject(change.recipe!! + ("name" to JsonPrimitive("${change.name} $copySuffix")))
+                            invalidate(saveOnline(null, copy, photoFor(change)))
+                        }
+                        queue.remove(change)
+                    }
                 }
-                queue.remove(change)
-            }
-            ConflictChoice.BOTH -> {
-                if (change.type == PendingChange.Type.UPDATE) {
-                    val copy = JsonObject(change.recipe!! + ("name" to JsonPrimitive("${change.name} (Handy)")))
-                    invalidate(saveOnline(null, copy, photoFor(change)))
-                }
-                queue.remove(change)
+                invalidate(change.recipeId)
             }
         }
-        invalidate(change.recipeId)
-    }
 
     /** Throws away a queued change. */
-    fun discardPending(change: PendingChange) {
+    suspend fun discardPending(change: PendingChange) = withContext(Dispatchers.IO) {
         pending?.remove(change)
         invalidate(change.recipeId)
     }
@@ -385,7 +466,7 @@ class CookbookRepository(
             if (refresh) categoryRecipes.clear()
             api.categories().also { categories = it }
         }
-        return overlayCategories(base)
+        return overlayCategories(base, pendingChanges)
             .sortedWith(compareBy<Category> { it.isUncategorized }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
     }
 
@@ -394,7 +475,8 @@ class CookbookRepository(
         return api.allRecipes().also { allRecipes = it }
     }
 
-    suspend fun allRecipes(refresh: Boolean = false): List<RecipeStub> = overlayStubs(allRecipesBase(refresh), null)
+    suspend fun allRecipes(refresh: Boolean = false): List<RecipeStub> =
+        overlayStubs(allRecipesBase(refresh), null, pendingChanges)
 
     /** Recipes of a category; pass [Category.UNCATEGORIZED_LIST_NAME] for uncategorized ones. */
     suspend fun recipesInCategory(category: String, refresh: Boolean = false): List<RecipeStub> {
@@ -406,11 +488,11 @@ class CookbookRepository(
                 api.recipesInCategory(queryName).also { categoryRecipes[category] = it }
             } catch (e: Throwable) {
                 // A category that only exists through offline changes has no stored list.
-                if (overlayStubs(emptyList(), category).isEmpty()) throw e
+                if (overlayStubs(emptyList(), category, pendingChanges).isEmpty()) throw e
                 emptyList()
             }
         }
-        return overlayStubs(base, category)
+        return overlayStubs(base, category, pendingChanges)
     }
 
     private suspend fun fetchRecipe(id: String, refresh: Boolean): Recipe {
@@ -430,77 +512,30 @@ class CookbookRepository(
     fun localImage(recipeId: String): File? =
         pending?.forRecipe(resolveId(recipeId))?.imageFile?.let(::File)?.takeIf { it.exists() }
 
-    suspend fun search(query: String): List<RecipeStub> = overlayStubs(api.search(query), null)
-        .filter { stub -> stub.id.startsWith(LOCAL_RECIPE_PREFIX).not() || stub.name.contains(query, ignoreCase = true) }
-
-    private fun categoryOf(recipe: JsonObject?): String =
-        recipe?.string("recipeCategory")?.trim().orEmpty().ifEmpty { Category.UNCATEGORIZED_LIST_NAME }
-
-    private fun matches(listName: String?, category: String) = listName == null || listName == category
-
-    /** Shows queued changes in recipe lists ([category] null = all recipes). */
-    private fun overlayStubs(base: List<RecipeStub>, category: String?): List<RecipeStub> {
-        val changes = pending?.changes?.value.orEmpty()
-        if (changes.isEmpty()) return base.sortedBy { it.name.lowercase() }
-        val byId = changes.associateBy { it.recipeId }
-        val result = base.mapNotNull { stub ->
-            val change = byId[stub.id] ?: return@mapNotNull stub
-            when (change.type) {
-                PendingChange.Type.DELETE -> null
-                else -> if (matches(category, categoryOf(change.recipe))) {
-                    stub.copy(name = change.name, keywords = change.recipe?.string("keywords").orEmpty())
-                } else null
-            }
-        }.toMutableList()
-        changes.filter { it.type != PendingChange.Type.DELETE && result.none { s -> s.id == it.recipeId } }
-            .filter { matches(category, categoryOf(it.recipe)) }
-            .filter { it.type == PendingChange.Type.CREATE || category != null }
-            .forEach { result += RecipeStub(it.recipeId, it.name, it.recipe?.string("keywords").orEmpty(), null) }
-        return result.sortedBy { it.name.lowercase() }
-    }
-
-    /** Adjusts category counts for queued changes. */
-    private fun overlayCategories(base: List<Category>): List<Category> {
-        val changes = pending?.changes?.value.orEmpty()
-        if (changes.isEmpty()) return base
-        val counts = LinkedHashMap<String, Int>()
-        base.forEach { counts[it.name] = it.recipeCount }
-        fun add(name: String?, delta: Int) {
-            if (name == null) return
-            counts[name] = (counts[name] ?: 0) + delta
-        }
-        changes.forEach { change ->
-            val from = change.fromCategory?.trim()?.ifEmpty { Category.UNCATEGORIZED_LIST_NAME }
-            when (change.type) {
-                PendingChange.Type.CREATE -> add(categoryOf(change.recipe), 1)
-                PendingChange.Type.DELETE -> add(from, -1)
-                PendingChange.Type.UPDATE -> {
-                    val to = categoryOf(change.recipe)
-                    if (from != null && from != to) {
-                        add(from, -1)
-                        add(to, 1)
-                    }
-                }
-            }
-        }
-        return counts.filter { it.value > 0 }.map { Category(it.key, it.value) }
-    }
+    suspend fun search(query: String): List<RecipeStub> = overlayStubs(api.search(query), null, pendingChanges)
+        .filter { stub -> !stub.id.startsWith(LOCAL_RECIPE_PREFIX) || stub.name.contains(query, ignoreCase = true) }
 
     // ---------------------------------------------------------------- sync
 
     /**
      * Brings the offline copy up to date: downloads every recipe that is new or
      * changed since the last sync (by dateModified) and forgets deleted ones.
+     * Only answers that really came from the server are counted.
      * Returns the current recipe list, or null if the server was unreachable.
      */
-    suspend fun syncOffline(onRecipe: (RecipeStub) -> Unit = {}): List<RecipeStub>? {
-        val store = store ?: return null
-        val stubs = allRecipesBase(refresh = true)
-        if (store.offline.value) return null // list came from the phone, not the server
-        categories(refresh = true)
+    suspend fun syncOffline(onRecipe: (RecipeStub) -> Unit = {}): List<RecipeStub>? = withContext(Dispatchers.IO) {
+        val store = store ?: return@withContext null
+        val stubs = try {
+            api.allRecipesFromServer().also { allRecipes = it }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            if (isUnreachable(e)) return@withContext null else throw e
+        }
+        runCatching { categories(refresh = true) }
         val index = store.readIndex().toMutableMap()
-        val limit = kotlinx.coroutines.sync.Semaphore(4)
-        kotlinx.coroutines.coroutineScope {
+        val limit = Semaphore(4)
+        coroutineScope {
             stubs.map { stub ->
                 async {
                     limit.withPermit {
@@ -511,10 +546,9 @@ class CookbookRepository(
                             onImagesOutdated(stub.id)
                         }
                         if (known != modified || modified.isEmpty()) {
-                            // Fetching stores the answer as the offline copy.
-                            runCatching { fetchRecipe(stub.id, refresh = true) }.onSuccess {
-                                // Only count it if it really came from the server.
-                                if (!store.offline.value) synchronized(index) { index[stub.id] = modified }
+                            runCatching { api.recipeFromServer(stub.id) }.onSuccess { recipe ->
+                                recipes[stub.id] = recipe
+                                synchronized(index) { index[stub.id] = modified }
                             }
                         }
                         onRecipe(stub)
@@ -529,7 +563,7 @@ class CookbookRepository(
         }
         store.writeIndex(index)
         store.markSynced()
-        return stubs
+        stubs
     }
 
     fun imageUrl(recipeId: String, size: String = "thumb") = api.imageUrl(resolveId(recipeId), size)

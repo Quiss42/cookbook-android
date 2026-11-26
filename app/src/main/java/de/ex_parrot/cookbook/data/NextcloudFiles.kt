@@ -72,7 +72,7 @@ class NextcloudFiles(private val account: Account, private val client: OkHttpCli
             .sortedWith(compareBy<CloudEntry> { !it.isFolder }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
     }
 
-    private fun parseMultistatus(xml: String, prefix: String): List<CloudEntry> {
+    internal fun parseMultistatus(xml: String, prefix: String): List<CloudEntry> {
         val parser = Xml.newPullParser()
         parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
         parser.setInput(xml.reader())

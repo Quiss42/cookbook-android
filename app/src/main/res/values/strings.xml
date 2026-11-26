@@ -9,7 +9,7 @@
     <string name="retry">Try again</string>
 
     <!-- Errors -->
-    <string name="error_unauthorized">The login is no longer valid. Please log out and log in again.</string>
+    <string name="error_unauthorized">The login is no longer valid. Please log in again.</string>
     <string name="error_not_found">Not found. Is the Cookbook app installed on this Nextcloud?</string>
     <string name="error_http">The server answered with error %1$d.</string>
     <string name="error_certificate">The server\'s certificate could not be verified.</string>
@@ -26,8 +26,8 @@
     <string name="login_advanced">Advanced</string>
     <string name="login_use_app_password">Enter an app password</string>
     <string name="login_use_app_password_hint">Instead of logging in through the browser. Create one in Nextcloud under Settings → Security.</string>
-    <string name="login_trust_all">Accept any certificate</string>
-    <string name="login_trust_all_hint">Only for servers with a self-signed certificate. Insecure: others could intercept your connection.</string>
+    <string name="login_trust_all">Self-signed certificate</string>
+    <string name="login_trust_all_hint">Accepts the server\'s certificate on the first connection and refuses any other certificate afterwards. After renewing the certificate, log in again.</string>
     <string name="login_waiting">Log in and grant access in the browser, then return to this app.</string>
     <string name="login_open_browser">Open browser</string>
     <string name="logout">Log out</string>
@@ -242,4 +242,15 @@
 
     <string name="image_web_later">No connection – the photo will be downloaded as soon as there is one: %1$s</string>
     <string name="upload_image_missing">Photo could not be downloaded, recipe uploaded without it (%1$s)</string>
+    <!-- Code review fixes (0.7.0) -->
+    <string name="conflict_copy_suffix">(phone)</string>
+    <string name="login_expired_title">Login expired</string>
+    <string name="login_expired_text">The server no longer accepts this app\'s password, e.g. because the device was removed in the Nextcloud settings. Log in again: changes made offline are kept and uploaded afterwards.</string>
+    <string name="login_again">Log in again</string>
+    <string name="later">Later</string>
+    <string name="timer_stop">Stop</string>
+    <string name="timer_notifications_off">Notifications are switched off, so the timer will not ring.</string>
+    <string name="error_certificate_changed">The server\'s certificate has changed. If you renewed it, log in again.</string>
+    <string name="error_image_too_large">The picture is larger than 20 MB.</string>
+    <string name="error_invalid_response">Unexpected answer from the server, perhaps a Wi-Fi login page.</string>
 </resources>

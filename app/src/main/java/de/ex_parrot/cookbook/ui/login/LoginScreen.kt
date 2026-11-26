@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.dp
 import de.ex_parrot.cookbook.R
 import de.ex_parrot.cookbook.ui.components.ErrorDetails
 import de.ex_parrot.cookbook.ui.components.errorMessage
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel) {
@@ -79,10 +81,10 @@ fun LoginScreen(viewModel: LoginViewModel) {
             Box(
                 Modifier
                     .size(96.dp)
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(24.dp))
                     .background(androidx.compose.ui.res.colorResource(R.color.ic_launcher_background)),
             ) {
-                androidx.compose.foundation.Image(
+                Image(
                     painter = androidx.compose.ui.res.painterResource(R.drawable.ic_launcher_foreground),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),

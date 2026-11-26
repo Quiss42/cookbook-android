@@ -80,6 +80,11 @@ import de.ex_parrot.cookbook.ui.components.Loadable
 import de.ex_parrot.cookbook.ui.components.LoadingView
 import de.ex_parrot.cookbook.ui.components.RecipeImage
 import java.time.Duration
+import android.widget.Toast
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import de.ex_parrot.cookbook.data.SHOWN_NUTRITION_KEYS
+import de.ex_parrot.cookbook.data.localizeDecimals
 
 @Composable
 fun RecipeScreen(
@@ -96,11 +101,11 @@ fun RecipeScreen(
     var confirmDelete by remember { mutableStateOf(false) }
     var timerFor by remember { mutableStateOf<Recipe?>(null) }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     LaunchedEffect(viewModel.deleted) {
         if (viewModel.deleted) {
             if (viewModel.deletionQueued) {
-                android.widget.Toast.makeText(context, R.string.offline_deleted, android.widget.Toast.LENGTH_LONG).show()
+                Toast.makeText(context, R.string.offline_deleted, Toast.LENGTH_LONG).show()
             }
             onBack()
         }
@@ -296,7 +301,7 @@ private fun RecipeContent(recipe: Recipe, session: Session, viewModel: RecipeVie
                         Checkbox(checked = checked, onCheckedChange = null)
                     }
                     Text(
-                        de.ex_parrot.cookbook.data.localizeDecimals(ingredient),
+                        localizeDecimals(ingredient),
                         style = MaterialTheme.typography.bodyLarge,
                         textDecoration = if (checked) TextDecoration.LineThrough else null,
                         color = if (checked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
@@ -343,14 +348,14 @@ private fun RecipeContent(recipe: Recipe, session: Session, viewModel: RecipeVie
         }
 
         val nutrition = recipe.nutrition.toMap().let { values ->
-            de.ex_parrot.cookbook.data.SHOWN_NUTRITION_KEYS.mapNotNull { key -> values[key]?.let { key to it } }
+            SHOWN_NUTRITION_KEYS.mapNotNull { key -> values[key]?.let { key to it } }
         }
         if (nutrition.isNotEmpty()) {
             section("nutrition") { SectionTitle(stringResource(R.string.nutrition)) }
             itemsIndexed(nutrition, key = { i, _ -> "nut$i" }) { _, (key, value) ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                     Text(nutritionLabel(key), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(de.ex_parrot.cookbook.data.localizeDecimals(value))
+                    Text(localizeDecimals(value))
                 }
             }
         }
@@ -372,7 +377,7 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+private fun InfoChip(icon: ImageVector, text: String) {
     AssistChip(
         onClick = {},
         label = { Text(text) },

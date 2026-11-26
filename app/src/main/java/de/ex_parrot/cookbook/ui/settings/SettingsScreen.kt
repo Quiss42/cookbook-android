@@ -47,17 +47,26 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.ex_parrot.cookbook.BuildConfig
 import de.ex_parrot.cookbook.R
 import de.ex_parrot.cookbook.data.AppSettings
+import de.ex_parrot.cookbook.data.PendingChange
 import de.ex_parrot.cookbook.data.Session
 import de.ex_parrot.cookbook.data.SettingsStore
 import de.ex_parrot.cookbook.data.ThemeMode
 import kotlinx.coroutines.launch
+import android.widget.Toast
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import de.ex_parrot.cookbook.data.UpdateChecker
+import de.ex_parrot.cookbook.data.UpdateInfo
+import de.ex_parrot.cookbook.ui.components.formatDateTime
+import kotlinx.coroutines.CancellationException
 
 @Composable
 fun SettingsScreen(
     session: Session,
     settings: AppSettings,
     settingsStore: SettingsStore,
-    onUpdateFound: (de.ex_parrot.cookbook.data.UpdateInfo) -> Unit,
+    onUpdateFound: (UpdateInfo) -> Unit,
     onLogout: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -163,14 +172,14 @@ fun SettingsScreen(
                         when {
                             offlineStatus.syncing -> stringResource(R.string.offline_syncing)
                             offlineStatus.lastSync != null ->
-                                stringResource(R.string.offline_last_sync, de.ex_parrot.cookbook.ui.components.formatDateTime(offlineStatus.lastSync!!))
+                                stringResource(R.string.offline_last_sync, formatDateTime(offlineStatus.lastSync!!))
                             else -> stringResource(R.string.offline_never)
                         },
                     )
                 },
                 trailingContent = {
                     if (offlineStatus.syncing) {
-                        androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
                     } else {
                         TextButton(onClick = { session.requestSync(force = true) }) {
                             Text(stringResource(R.string.offline_sync_now))
@@ -192,9 +201,9 @@ fun SettingsScreen(
                         supportingContent = {
                             val kind = stringResource(
                                 when (change.type) {
-                                    de.ex_parrot.cookbook.data.PendingChange.Type.CREATE -> R.string.pending_create
-                                    de.ex_parrot.cookbook.data.PendingChange.Type.UPDATE -> R.string.pending_update
-                                    de.ex_parrot.cookbook.data.PendingChange.Type.DELETE -> R.string.pending_delete
+                                    PendingChange.Type.CREATE -> R.string.pending_create
+                                    PendingChange.Type.UPDATE -> R.string.pending_update
+                                    PendingChange.Type.DELETE -> R.string.pending_delete
                                 },
                             )
                             val state = when {
@@ -205,8 +214,8 @@ fun SettingsScreen(
                             Text(listOfNotNull(kind, state).joinToString(" · "))
                         },
                         trailingContent = {
-                            IconButton(onClick = { session.repository.discardPending(change) }) {
-                                Icon(androidx.compose.material.icons.Icons.Outlined.Delete, stringResource(R.string.pending_discard))
+                            IconButton(onClick = { scope.launch { session.repository.discardPending(change) } }) {
+                                Icon(Icons.Outlined.Delete, stringResource(R.string.pending_discard))
                             }
                         },
                     )
@@ -217,33 +226,33 @@ fun SettingsScreen(
             SectionHeader(stringResource(R.string.settings_updates))
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_check_updates_on_start)) },
-                trailingContent = { androidx.compose.material3.Checkbox(checked = settings.checkUpdatesOnStart, onCheckedChange = null) },
+                trailingContent = { Checkbox(checked = settings.checkUpdatesOnStart, onCheckedChange = null) },
                 modifier = Modifier.clickable {
                     scope.launch { settingsStore.setCheckUpdatesOnStart(!settings.checkUpdatesOnStart) }
                 },
             )
-            androidx.compose.material3.OutlinedButton(
+            OutlinedButton(
                 onClick = {
                     checkingUpdates = true
                     scope.launch {
                         try {
-                            val update = de.ex_parrot.cookbook.data.UpdateChecker.check(BuildConfig.VERSION_NAME)
+                            val update = UpdateChecker.check(BuildConfig.VERSION_NAME)
                             if (update != null) {
                                 onUpdateFound(update)
                             } else {
-                                android.widget.Toast.makeText(
+                                Toast.makeText(
                                     context,
                                     context.getString(R.string.update_none, BuildConfig.VERSION_NAME),
-                                    android.widget.Toast.LENGTH_SHORT,
+                                    Toast.LENGTH_SHORT,
                                 ).show()
                             }
-                        } catch (e: kotlinx.coroutines.CancellationException) {
+                        } catch (e: CancellationException) {
                             throw e
                         } catch (e: Throwable) {
-                            android.widget.Toast.makeText(
+                            Toast.makeText(
                                 context,
                                 context.getString(R.string.update_check_failed),
-                                android.widget.Toast.LENGTH_LONG,
+                                Toast.LENGTH_LONG,
                             ).show()
                         } finally {
                             checkingUpdates = false
@@ -254,7 +263,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             ) {
                 if (checkingUpdates) {
-                    androidx.compose.material3.CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 } else {
                     Text(stringResource(R.string.settings_check_updates_now))
                 }

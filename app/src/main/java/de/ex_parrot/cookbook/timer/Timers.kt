@@ -2,6 +2,7 @@ package de.ex_parrot.cookbook.timer
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -9,6 +10,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -64,7 +67,9 @@ class TimerStore(private val context: Context) {
 /** Schedules the alarms and shows the notifications for cooking timers. */
 object TimerController {
     private const val CHANNEL_RUNNING = "timer_running"
-    private const val CHANNEL_DONE = "timer_done"
+    /** Replaced "timer_done": a channel's sound can't be changed once created. */
+    private const val CHANNEL_ALARM = "timer_alarm"
+    private const val OLD_CHANNEL_DONE = "timer_done"
     const val ACTION_FINISHED = "de.ex_parrot.cookbook.TIMER_FINISHED"
     const val ACTION_CANCEL = "de.ex_parrot.cookbook.TIMER_CANCEL"
     const val EXTRA_TIMER_ID = "timer_id"
@@ -75,11 +80,28 @@ object TimerController {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_RUNNING, context.getString(R.string.timer_channel_running), NotificationManager.IMPORTANCE_LOW),
         )
+        manager.deleteNotificationChannel(OLD_CHANNEL_DONE)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_DONE, context.getString(R.string.timer_channel_done), NotificationManager.IMPORTANCE_HIGH).apply {
+            NotificationChannel(CHANNEL_ALARM, context.getString(R.string.timer_channel_done), NotificationManager.IMPORTANCE_HIGH).apply {
+                // Rings like an alarm clock: alarm volume, also when the phone is on silent for media.
+                setSound(
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                        ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                )
                 enableVibration(true)
             },
         )
+    }
+
+    /** False if notifications (or the alarm channel) are switched off: a timer would end silently. */
+    fun canAlert(context: Context): Boolean {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+        val channel = context.getSystemService(NotificationManager::class.java).getNotificationChannel(CHANNEL_ALARM)
+        return channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE
     }
 
     suspend fun start(context: Context, recipeId: String, title: String, durationMillis: Long): CookingTimer {
@@ -126,16 +148,20 @@ object TimerController {
         val store = TimerStore(context)
         val timer = store.timers.first().firstOrNull { it.id == timerId } ?: return
         store.remove(timerId)
-        val notification = NotificationCompat.Builder(context, CHANNEL_DONE)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ALARM)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.timer_done_title))
             .setContentText(timer.title)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setAutoCancel(true)
             .setContentIntent(openAppIntent(context, timerId))
+            // Shown over the lock screen where Android allows it.
+            .setFullScreenIntent(openAppIntent(context, timerId), true)
+            .addAction(0, context.getString(R.string.timer_stop), cancelIntent(context, timerId))
             .build()
+        // Keeps ringing until the notification is tapped, stopped or swiped away.
+        notification.flags = notification.flags or Notification.FLAG_INSISTENT
         notify(context, timerId, notification)
     }
 
@@ -154,7 +180,7 @@ object TimerController {
             .addAction(0, context.getString(R.string.timer_cancel), cancelIntent(context, timer.id))
             .build()
 
-    private fun notify(context: Context, id: Int, notification: android.app.Notification) {
+    private fun notify(context: Context, id: Int, notification: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return

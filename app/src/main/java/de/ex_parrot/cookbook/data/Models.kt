@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import java.time.Duration
+import java.text.DecimalFormatSymbols
 
 /** Category as listed by the server. [name] "*" means "uncategorized". */
 data class Category(val name: String, val recipeCount: Int) {
@@ -129,7 +130,7 @@ private val decimalNumber = Regex("""\d+(?:[.,]\d+)+""")
  */
 fun localizeDecimals(
     text: String,
-    separator: Char = java.text.DecimalFormatSymbols.getInstance().decimalSeparator,
+    separator: Char = DecimalFormatSymbols.getInstance().decimalSeparator,
 ): String = decimalNumber.replace(text) { match ->
     val number = match.value
     val separators = number.count { it == '.' || it == ',' }

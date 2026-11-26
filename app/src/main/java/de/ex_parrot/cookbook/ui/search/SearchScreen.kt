@@ -51,6 +51,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.Box
+import kotlinx.coroutines.CancellationException
 
 class SearchViewModel(private val repository: CookbookRepository) : ViewModel() {
     val query = MutableStateFlow("")
@@ -80,7 +82,7 @@ class SearchViewModel(private val repository: CookbookRepository) : ViewModel() 
             Loadable.Ready(runCatching { repository.search(q) }.getOrElse {
                 repository.allRecipes().filter { it.name.contains(q, ignoreCase = true) }
             })
-        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
             Loadable.Failed(e)
@@ -144,7 +146,7 @@ fun SearchScreen(
             is Loadable.Ready -> if (r.value.isEmpty()) {
                 EmptyView(stringResource(R.string.search_no_results), modifier)
             } else {
-                androidx.compose.foundation.layout.Box(modifier) { RecipeList(r.value, session, onOpenRecipe) }
+                Box(modifier) { RecipeList(r.value, session, onOpenRecipe) }
             }
         }
     }
