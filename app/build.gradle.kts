@@ -26,7 +26,12 @@ val hasReleaseSigning = releaseStoreFile != null && file(releaseStoreFile).exist
 
 android {
     namespace = "de.ex_parrot.cookbook"
-    compileSdk = 37
+    // Compose 1.13 needs the API 37 minor release 37.1 or newer.
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         applicationId = "de.ex_parrot.cookbook"
