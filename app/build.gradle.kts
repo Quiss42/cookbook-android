@@ -26,7 +26,7 @@ val hasReleaseSigning = releaseStoreFile != null && file(releaseStoreFile).exist
 
 android {
     namespace = "de.ex_parrot.cookbook"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "de.ex_parrot.cookbook"
