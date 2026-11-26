@@ -94,8 +94,8 @@ of publishing a wrongly signed APK. The `versionCode` is derived from the versio
 (1.2.3 → 1002003). Dependabot proposes dependency and action updates monthly; actions
 are pinned to commit SHAs.
 
-Locally: Android SDK + Gradle 8.14, then `gradle :app:assembleDebug` or
-`gradle :app:testDebugUnitTest`.
+Locally: Android SDK and JDK 17 or newer, then `./gradlew :app:assembleDebug` or
+`./gradlew :app:testDebugUnitTest` (the wrapper downloads the right Gradle version).
 
 Release signing uses the repository secrets `ANDROID_KEYSTORE_BASE64`,
 `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`
