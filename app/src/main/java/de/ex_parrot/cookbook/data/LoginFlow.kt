@@ -52,7 +52,7 @@ class LoginFlow(private val client: OkHttpClient) {
             .build()
         client.newCall(request).execute().use { response ->
             when {
-                response.isSuccessful -> json.decodeFromString<LoginFlowResult>(response.body!!.string())
+                response.isSuccessful -> json.decodeFromString<LoginFlowResult>(response.body.string())
                 response.code == 404 -> null
                 else -> throw HttpException(response.code, "Login polling failed: HTTP ${response.code}")
             }

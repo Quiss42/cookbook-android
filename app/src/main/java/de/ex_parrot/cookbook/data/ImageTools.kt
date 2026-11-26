@@ -140,7 +140,7 @@ object ImageTools {
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw HttpException(response.code, "HTTP ${response.code}")
-            val body = response.body ?: throw NoImageException()
+            val body = response.body
             if (body.contentLength() > MAX_DOWNLOAD_BYTES) throw ImageTooLargeException()
             val bytes = body.byteStream().use { readLimited(it, MAX_DOWNLOAD_BYTES) }
             return bytes to body.contentType()?.let { "${it.type}/${it.subtype}" }

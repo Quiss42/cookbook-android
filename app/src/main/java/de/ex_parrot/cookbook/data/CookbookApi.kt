@@ -61,7 +61,7 @@ class CookbookApi(
             if (!fallback || !isUnreachable(e)) throw e
             val stored = store?.read(url) ?: throw e
             val parsed = runCatching { parse(stored) }.getOrElse { throw e }
-            store?.markOffline()
+            store.markOffline()
             return Fetched(parsed, fromServer = false)
         }
     }

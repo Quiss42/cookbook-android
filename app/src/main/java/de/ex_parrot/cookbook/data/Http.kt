@@ -176,7 +176,7 @@ private class AuthInterceptor(account: Account, private val onUnauthorized: () -
 /** Executes the request on the IO dispatcher and returns the body, or throws [HttpException]. */
 suspend fun OkHttpClient.fetch(request: Request): String = withContext(Dispatchers.IO) {
     newCall(request).execute().use { response ->
-        val body = response.body?.string().orEmpty()
+        val body = response.body.string()
         if (!response.isSuccessful) {
             throw HttpException(response.code, "HTTP ${response.code}: ${summarizeBody(body)}")
         }
