@@ -88,9 +88,6 @@ android {
         checkReleaseBuilds = false
         // "A newer version is available" would break the build with every release; Dependabot covers it.
         disable += setOf("GradleDependency", "AndroidGradlePluginVersion", "NewerVersionAvailable")
-        // Full list in the CI log.
-        textReport = true
-        textOutput = file("build/reports/lint-results.txt")
     }
 
     androidResources {

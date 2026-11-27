@@ -39,7 +39,7 @@ jobs:
 
       - name: Show lint findings
         if: failure()
-        run: cat app/build/reports/lint-results.txt || true
+        run: cat app/build/reports/lint-results-debug.txt || true
 
 
       - name: Upload test and lint reports

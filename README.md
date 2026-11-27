@@ -24,9 +24,12 @@ Updates install over the previous version. The app can also look for new release
 **Login**
 - Through the browser (Nextcloud Login Flow v2) or with an app password
 - Credentials encrypted with an Android Keystore key; logging out revokes the app password
-- Self-signed certificates (optional, off by default): the certificate is trusted on first
-  use and pinned, a different one is refused later; user-installed CAs are trusted
-- If the app password is revoked, the app offers to log in again; offline changes are kept
+- Self-signed certificates (optional, off by default): at login the certificate's SHA-256
+  fingerprint is shown for confirmation, afterwards only that certificate is accepted;
+  user-installed CAs are trusted
+- If the app password is revoked or the certificate changes, the app offers to log in
+  again; offline changes are kept. Logging in with a different account warns first
+- Login and offline data are excluded from backups and device transfers
 
 **Browsing**
 - Categories with cover photos, 1–3 per row (configurable), "All recipes" and "Uncategorized"
@@ -57,8 +60,9 @@ Updates install over the previous version. The app can also look for new release
 **More**
 - Import recipes from a web page, also via Android's share menu
 - Cooking timers with exact alarms, countdown notification and timers screen; survive reboots.
-  A finished timer rings like an alarm clock (alarm volume, repeating until stopped); the app
-  warns if notifications are switched off
+  A finished timer rings like an alarm clock (alarm volume, repeating until stopped) and
+  shows a full-screen alarm over the lock screen (without recipe content); the app warns
+  if notifications are switched off
 - Light/dark theme, wallpaper colours, per-app language (Android 13+)
 - Offline reading: all recipes and thumbnails are kept on the phone and synced in the
   background (on start at most every 10 minutes, on pull to refresh, or from Settings);
@@ -67,8 +71,8 @@ Updates install over the previous version. The app can also look for new release
   changes (including camera/gallery photos) are queued and uploaded in order once the
   server is reachable, also when the app is closed (WorkManager). If a recipe was changed
   on the server meanwhile (detected via `dateModified`), the app asks: my version, server
-  version or keep both. Saves that timed out are checked before retrying, so no
-  duplicates are created
+  version or keep both. Saves that timed out after sending are checked before retrying
+  (creation time and full content), so no duplicates are created and nothing is dropped
 - Update check against GitHub releases (on start, optional, or manually)
 - English and German
 
@@ -82,11 +86,14 @@ Updates install over the previous version. The app can also look for new release
 - Web photos are limited to 20 MB.
 - Fields the app does not know are preserved when a recipe is saved.
 - Offline copies are only stored after the answer parsed as JSON (no captive-portal pages);
-  queue and index files are written atomically.
+  queue and index files are written atomically with fsync, a damaged queue file is kept
+  as `pending.json.bad-…`.
 
 ## Building
 
-Every push runs the unit tests and lint and builds a release APK with GitHub Actions
+Every push runs the unit tests (including the upload logic against a fake Cookbook server)
+and lint (new findings stop the build; known ones are listed in `app/lint-baseline.xml`)
+and builds a release APK with GitHub Actions
 (Actions tab → run → artifacts `cookbook-apk` and `reports`). A new version
 (`APP_VERSION_NAME` in `gradle.properties`) on the default branch also creates a GitHub
 release with the APK; without the release keystore the default branch build fails instead

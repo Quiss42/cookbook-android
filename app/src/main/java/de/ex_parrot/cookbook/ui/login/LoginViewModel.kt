@@ -145,7 +145,7 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
         val sameAccount = previous != null &&
             previous.server.equals(loggedIn.server, ignoreCase = true) &&
             previous.loginName.equals(loggedIn.loginName, ignoreCase = true)
-        val account = if (sameAccount) loggedIn.copy(server = previous!!.server, loginName = previous.loginName) else loggedIn
+        val account = if (sameAccount) loggedIn.copy(server = previous.server, loginName = previous.loginName) else loggedIn
         if (previous != null && !sameAccount && sessionManager.reloginWaitingChanges > 0) {
             val name = "${previous.loginName} @ ${runCatching { URI(previous.server).host }.getOrDefault(previous.server)}"
             if (!ask(LoginStep.ConfirmOtherAccount(name, sessionManager.reloginWaitingChanges))) {
