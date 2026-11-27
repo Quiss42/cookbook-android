@@ -103,6 +103,8 @@ class CookbookRepository(
         if (queue != null && target != null && (target.startsWith(LOCAL_RECIPE_PREFIX) || queue.forRecipe(target) != null)) {
             return@withContext enqueueSave(target, recipe, localImage, baseModified, fromCategory, webImage)
         }
+        // Before the first request: a timed-out create can only have produced recipes after this.
+        val started = System.currentTimeMillis()
         try {
             // A web photo is fetched now; if that fails for lack of connection, everything is queued.
             val photo = localImage ?: webImage?.let { downloadImage(it) }
@@ -113,7 +115,10 @@ class CookbookRepository(
             throw e
         } catch (e: Throwable) {
             if (queue == null || !isUnreachable(e)) throw e
-            enqueueSave(target, recipe, localImage, baseModified, fromCategory, webImage, uncertain = mayHaveReachedServer(e))
+            enqueueSave(
+                target, recipe, localImage, baseModified, fromCategory, webImage,
+                uncertain = mayHaveReachedServer(e), createdAt = started,
+            )
         }
     }
 
@@ -143,13 +148,14 @@ class CookbookRepository(
         fromCategory: String?,
         webImage: String? = null,
         uncertain: Boolean = false,
+        createdAt: Long = System.currentTimeMillis(),
     ): SaveResult {
         val queue = pending!!
         val image = localImage?.let(queue::keepImage)
         val newPhoto = image != null || webImage != null
         val name = recipe.string("name")
         val existing = id?.let(queue::forRecipe)
-        val now = System.currentTimeMillis()
+        val now = createdAt
         val resultId: String
         when {
             id == null -> {
@@ -314,13 +320,16 @@ class CookbookRepository(
                         invalidate(change.recipeId)
                         finishCreate(change, newId)
                     }
-                    // Our own earlier, timed-out save may have arrived after all.
-                    change.uncertain && sameContent(change.recipe, server.raw) -> finishUpdate(change, server.dateModified)
-                    changedOnServer(change, server) -> markConflict(change)
-                    else -> {
+                    // Unchanged since editing started: nothing has arrived, so upload normally.
+                    !changedOnServer(change, server) -> {
                         saveOnline(change.recipeId, change.recipe!!, photoFor(change))
                         finishUpdate(change, null)
                     }
+                    // Changed: maybe by our own earlier, timed-out save. Only if every edited
+                    // field matches and no photo is still waiting; otherwise the user decides.
+                    change.uncertain && !hasPendingPhoto(change) && sameContent(change.recipe, server.raw) ->
+                        finishUpdate(change, server.dateModified)
+                    else -> markConflict(change)
                 }
             }
             PendingChange.Type.DELETE -> {
@@ -338,9 +347,24 @@ class CookbookRepository(
         }
     }
 
-    /** A recipe with the same name, which an earlier timed-out attempt may have created. */
-    private suspend fun findCreatedEarlier(change: PendingChange): String? =
-        api.allRecipesFromServer().firstOrNull { it.name == change.name }?.id
+    private fun hasPendingPhoto(change: PendingChange) = change.imageFile != null || change.imageWebUrl != null
+
+    /**
+     * The recipe an earlier, timed-out attempt may have created: same name,
+     * created on the server after the change was made and with the same
+     * content. An older recipe that just has the same name never matches.
+     */
+    private suspend fun findCreatedEarlier(change: PendingChange): String? {
+        val candidates = api.allRecipesFromServer().filter { it.name == change.name }
+        for (stub in candidates) {
+            val server = fetchServerVersion(stub.id) ?: continue
+            val created = parseServerTime(server.raw.string("dateCreated")) ?: continue
+            if (created >= change.createdAt - CLOCK_TOLERANCE_MILLIS && sameContent(change.recipe, server.raw)) {
+                return stub.id
+            }
+        }
+        return null
+    }
 
     /**
      * After the recipe of a queued CREATE exists on the server: forget the
@@ -567,4 +591,9 @@ class CookbookRepository(
     }
 
     fun imageUrl(recipeId: String, size: String = "thumb") = api.imageUrl(resolveId(recipeId), size)
+
+    private companion object {
+        /** Allowed difference between the clocks of phone and server. */
+        const val CLOCK_TOLERANCE_MILLIS = 10L * 60 * 1000
+    }
 }

@@ -37,6 +37,7 @@ import de.ex_parrot.cookbook.R
 import de.ex_parrot.cookbook.data.CertificateChangedException
 import de.ex_parrot.cookbook.data.ImageTooLargeException
 import de.ex_parrot.cookbook.data.InvalidResponseException
+import de.ex_parrot.cookbook.data.UnconfirmedCertificateException
 import de.ex_parrot.cookbook.data.HttpException
 import java.io.IOException
 import javax.net.ssl.SSLException
@@ -54,6 +55,7 @@ sealed interface Loadable<out T> {
 @Composable
 fun errorMessage(error: Throwable): String = when {
     error.causes().any { it is CertificateChangedException } -> stringResource(R.string.error_certificate_changed)
+    error.causes().any { it is UnconfirmedCertificateException } -> stringResource(R.string.error_certificate_unconfirmed)
     error is ImageTooLargeException -> stringResource(R.string.error_image_too_large)
     error is InvalidResponseException -> stringResource(R.string.error_invalid_response)
     error is HttpException && error.code == 401 -> stringResource(R.string.error_unauthorized)

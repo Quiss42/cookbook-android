@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.ex_parrot.cookbook.BuildConfig
@@ -17,6 +18,9 @@ import de.ex_parrot.cookbook.R
 import de.ex_parrot.cookbook.data.ConflictChoice
 import de.ex_parrot.cookbook.data.PendingChange
 import de.ex_parrot.cookbook.data.UpdateInfo
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.text.font.FontFamily
 
 @Composable
 fun UpdateDialog(info: UpdateInfo, onInstall: () -> Unit, onDismiss: () -> Unit) {
@@ -61,14 +65,59 @@ fun ConflictDialog(change: PendingChange, busy: Boolean, onChoice: (ConflictChoi
     )
 }
 
-/** The server no longer accepts the app password. */
+/**
+ * The server no longer accepts the app password, or ([certificateChanged]) a
+ * self-signed server presents a different certificate. Offers to log in again.
+ */
 @Composable
-fun LoginExpiredDialog(onRelogin: () -> Unit, onDismiss: () -> Unit) {
+fun LoginExpiredDialog(certificateChanged: Boolean, onRelogin: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.login_expired_title)) },
-        text = { Text(stringResource(R.string.login_expired_text)) },
+        title = {
+            Text(stringResource(if (certificateChanged) R.string.certificate_changed_title else R.string.login_expired_title))
+        },
+        text = {
+            Text(stringResource(if (certificateChanged) R.string.certificate_changed_text else R.string.login_expired_text))
+        },
         confirmButton = { TextButton(onClick = onRelogin) { Text(stringResource(R.string.login_again)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.later)) } },
+    )
+}
+
+/** Shows a self-signed certificate's fingerprint for the user to compare before trusting it. */
+@Composable
+fun ConfirmCertificateDialog(fingerprint: String, onAccept: () -> Unit, onDecline: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDecline,
+        title = { Text(stringResource(R.string.certificate_confirm_title)) },
+        text = {
+            Column {
+                Text(stringResource(R.string.certificate_confirm_text))
+                SelectionContainer {
+                    Text(
+                        fingerprint,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onAccept) { Text(stringResource(R.string.certificate_trust)) } },
+        dismissButton = { TextButton(onClick = onDecline) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** Logging in with a different account would drop the offline changes of the expired one. */
+@Composable
+fun ConfirmOtherAccountDialog(previousAccount: String, waitingChanges: Int, onAccept: () -> Unit, onDecline: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDecline,
+        title = { Text(stringResource(R.string.other_account_title)) },
+        text = {
+            Text(pluralStringResource(R.plurals.other_account_text, waitingChanges, waitingChanges, previousAccount))
+        },
+        confirmButton = { TextButton(onClick = onAccept) { Text(stringResource(R.string.other_account_continue)) } },
+        dismissButton = { TextButton(onClick = onDecline) { Text(stringResource(R.string.cancel)) } },
     )
 }

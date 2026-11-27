@@ -57,6 +57,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.ex_parrot.cookbook.R
 import de.ex_parrot.cookbook.ui.components.ErrorDetails
+import de.ex_parrot.cookbook.ui.dialogs.ConfirmCertificateDialog
+import de.ex_parrot.cookbook.ui.dialogs.ConfirmOtherAccountDialog
 import de.ex_parrot.cookbook.ui.components.errorMessage
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -104,6 +106,23 @@ fun LoginScreen(viewModel: LoginViewModel) {
             when (val step = viewModel.step) {
                 is LoginStep.WaitingForBrowser -> WaitingForBrowser(viewModel)
                 LoginStep.Working -> CircularProgressIndicator()
+                is LoginStep.ConfirmCertificate -> {
+                    CircularProgressIndicator()
+                    ConfirmCertificateDialog(
+                        fingerprint = step.fingerprint,
+                        onAccept = { viewModel.decide(true) },
+                        onDecline = { viewModel.decide(false) },
+                    )
+                }
+                is LoginStep.ConfirmOtherAccount -> {
+                    CircularProgressIndicator()
+                    ConfirmOtherAccountDialog(
+                        previousAccount = step.previousAccount,
+                        waitingChanges = step.waitingChanges,
+                        onAccept = { viewModel.decide(true) },
+                        onDecline = { viewModel.decide(false) },
+                    )
+                }
                 else -> {
                     LoginForm(viewModel)
                     if (step is LoginStep.Failed) {

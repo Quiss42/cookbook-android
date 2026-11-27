@@ -217,10 +217,13 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
     }
 
     // The app password was revoked: offer to log in again (offline changes are kept).
+    // Same for a changed self-signed certificate: logging in again shows the new one for confirmation.
     val loginExpired by session.loginExpired.collectAsStateWithLifecycle()
+    val certificateProblem by session.certificateProblem.collectAsStateWithLifecycle()
     var loginExpiredDismissed by remember(session) { mutableStateOf(false) }
-    if (loginExpired && !loginExpiredDismissed) {
+    if ((loginExpired || certificateProblem) && !loginExpiredDismissed) {
         LoginExpiredDialog(
+            certificateChanged = certificateProblem && !loginExpired,
             onRelogin = { container.scope.launch { container.sessionManager.relogin() } },
             onDismiss = { loginExpiredDismissed = true },
         )

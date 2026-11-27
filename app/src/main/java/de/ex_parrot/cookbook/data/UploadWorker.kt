@@ -22,7 +22,9 @@ class UploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val sessions = (applicationContext as CookbookApp).container.sessionManager
         val state = sessions.state.first { it !is SessionState.Loading }
         val session = (state as? SessionState.LoggedIn)?.session ?: return Result.success()
-        if (session.loginExpired.value) return Result.success()
+        if (session.loginExpired.value || session.certificateProblem.value || session.offlineStore.closed) {
+            return Result.success()
+        }
         val pending = session.offlineStore.pending
         val repository = session.repository
         // Repeat while changes were made during the upload.
@@ -32,7 +34,8 @@ class UploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         } while (pending.changes.value != before && repository.hasUploadsWaiting())
         // Changes without an error are only left if the server was unreachable.
         val waiting = pending.changes.value.any { !it.conflict && it.error == null }
-        return if (waiting && !session.loginExpired.value) Result.retry() else Result.success()
+        val blocked = session.loginExpired.value || session.certificateProblem.value || session.offlineStore.closed
+        return if (waiting && !blocked) Result.retry() else Result.success()
     }
 
     companion object {

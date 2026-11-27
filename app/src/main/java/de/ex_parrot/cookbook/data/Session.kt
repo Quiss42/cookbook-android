@@ -33,7 +33,15 @@ class Session(private val context: Context, val account: Account) {
     /** True once the server refused the app password (revoked or expired). */
     val loginExpired: StateFlow<Boolean> = _loginExpired
 
-    val client = Http.authenticated(account, onUnauthorized = { _loginExpired.value = true })
+    private val _certificateProblem = MutableStateFlow(false)
+    /** True once a self-signed server presented a certificate other than the confirmed one. */
+    val certificateProblem: StateFlow<Boolean> = _certificateProblem
+
+    val client = Http.authenticated(
+        account,
+        onUnauthorized = { _loginExpired.value = true },
+        onCertificateProblem = { _certificateProblem.value = true },
+    )
     val offlineStore = OfflineStore(context, account)
     val files = NextcloudFiles(account, client)
     val repository = CookbookRepository(CookbookApi(account, client, offlineStore), offlineStore, files)
@@ -153,8 +161,12 @@ sealed interface SessionState {
 class SessionManager(context: Context, private val accountStore: AccountStore, private val scope: CoroutineScope) {
     private val appContext = context.applicationContext
 
-    /** Server of an expired login, offered again on the login screen. */
+    /** The expired login (server and name are offered again on the login screen). */
     var reloginHint: Account? = null
+        private set
+
+    /** Offline changes of [reloginHint] that are only kept when logging in with that account again. */
+    var reloginWaitingChanges = 0
         private set
 
     val state: StateFlow<SessionState> = accountStore.account
@@ -165,8 +177,11 @@ class SessionManager(context: Context, private val accountStore: AccountStore, p
         .stateIn(scope, SharingStarted.Eagerly, SessionState.Loading)
 
     suspend fun login(account: Account) {
+        // Offline data of any other account (e.g. after logging in with a different one) is no longer needed.
+        withContext(Dispatchers.IO) { OfflineStore.removeOtherAccounts(appContext, account) }
         accountStore.save(account)
         reloginHint = null
+        reloginWaitingChanges = 0
     }
 
     /** Logs out at once; the app password is revoked in the background. */
@@ -174,6 +189,7 @@ class SessionManager(context: Context, private val accountStore: AccountStore, p
         val session = (state.value as? SessionState.LoggedIn)?.session
         accountStore.clear()
         reloginHint = null
+        reloginWaitingChanges = 0
         session ?: return
         scope.launch(Dispatchers.IO) { withTimeoutOrNull(15_000) { session.revokeAppPassword() } }
         withContext(Dispatchers.IO) {
@@ -189,6 +205,7 @@ class SessionManager(context: Context, private val accountStore: AccountStore, p
     suspend fun relogin() {
         val session = (state.value as? SessionState.LoggedIn)?.session
         reloginHint = session?.account
+        reloginWaitingChanges = session?.offlineStore?.pending?.changes?.value?.size ?: 0
         accountStore.clear()
         session?.let { withContext(Dispatchers.IO) { it.close(clearOffline = false) } }
     }

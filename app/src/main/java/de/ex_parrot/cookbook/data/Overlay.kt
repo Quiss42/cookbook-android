@@ -1,6 +1,14 @@
 package de.ex_parrot.cookbook.data
 
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 /*
  * Pure functions that show queued offline changes in lists, kept separate so
@@ -59,10 +67,34 @@ internal fun overlayCategories(base: List<Category>, changes: List<PendingChange
     return counts.filter { it.value > 0 }.map { Category(it.key, it.value) }
 }
 
-/** True if the server already has the content of [mine] (after a timed-out save). */
+/** Edited fields compared after a timed-out save; the image path is rewritten by the server. */
+private val COMPARED_KEYS = EDITED_RECIPE_KEYS - "image"
+
+private fun normalized(element: JsonElement?): String = when (element) {
+    null, JsonNull -> ""
+    is JsonPrimitive -> element.content.trim()
+    is JsonArray -> element.joinToString("\u0000") { normalized(it) }
+    is JsonObject -> element.entries
+        .filter { !it.key.startsWith("@") && normalized(it.value).isNotEmpty() }
+        .sortedBy { it.key }
+        .joinToString("\u0000") { "${it.key}=${normalized(it.value)}" }
+}
+
+/**
+ * True if the server already has the content of [mine] (after a timed-out
+ * save): every edited field (see [EDITED_RECIPE_KEYS]) except the image matches.
+ */
 internal fun sameContent(mine: JsonObject?, server: JsonObject): Boolean {
     if (mine == null) return false
-    val keys = listOf("name", "description", "recipeCategory", "recipeIngredient", "recipeInstructions", "tool")
-    fun norm(o: JsonObject, k: String) = o[k]?.toString()?.trim().orEmpty()
-    return keys.all { norm(mine, it) == norm(server, it) }
+    return COMPARED_KEYS.all { normalized(mine[it]) == normalized(server[it]) }
+}
+
+/** Reads the server's timestamps ("2026-11-27T10:15:00+0000" and similar) as epoch millis. */
+internal fun parseServerTime(value: String?): Long? {
+    val text = value?.trim().orEmpty()
+    if (text.isEmpty()) return null
+    runCatching { return OffsetDateTime.parse(text).toInstant().toEpochMilli() }
+    runCatching { return OffsetDateTime.parse(text, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXX")).toInstant().toEpochMilli() }
+    runCatching { return LocalDateTime.parse(text.replace(' ', 'T')).toInstant(ZoneOffset.UTC).toEpochMilli() }
+    return text.toLongOrNull()?.let { if (it < 100_000_000_000L) it * 1000 else it }
 }

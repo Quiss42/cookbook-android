@@ -8,7 +8,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.io.File
 import java.io.IOException
-import java.io.InterruptedIOException
 import java.security.cert.CertificateException
 import javax.net.ssl.SSLPeerUnverifiedException
 
@@ -31,8 +30,12 @@ private fun isCertificateProblem(e: Throwable): Boolean =
     e is SSLPeerUnverifiedException ||
         generateSequence(e) { it.cause?.takeIf { c -> c !== it } }.any { it is CertificateException }
 
-/** True if a request may have reached the server although no answer came back. */
-fun mayHaveReachedServer(e: Throwable): Boolean = e is InterruptedIOException
+/**
+ * True if a request may have reached the server although no answer came back:
+ * the connection was established and sending had started (see [fetch]).
+ * Failures while connecting (DNS, connect timeout, TLS) do not count.
+ */
+fun mayHaveReachedServer(e: Throwable): Boolean = e is RequestMayHaveArrivedException
 
 /** A change made without connection, waiting to be uploaded. */
 @Serializable
@@ -68,18 +71,35 @@ data class PendingChange(
     enum class Type { CREATE, UPDATE, DELETE }
 }
 
-/** Persisted queue of [PendingChange]s, in the order they were made. */
-class PendingStore(private val file: File, private val imageDir: File) {
+/**
+ * Persisted queue of [PendingChange]s, in the order they were made.
+ * [isClosed] turns writes into no-ops after the account was logged out.
+ */
+class PendingStore(
+    private val file: File,
+    private val imageDir: File,
+    private val isClosed: () -> Boolean = { false },
+) {
     private val json = Json { ignoreUnknownKeys = true }
     private val _changes = MutableStateFlow(load())
     val changes: StateFlow<List<PendingChange>> = _changes
 
-    private fun load(): List<PendingChange> =
-        runCatching { json.decodeFromString<List<PendingChange>>(file.readText()) }.getOrDefault(emptyList())
+    private fun load(): List<PendingChange> {
+        if (!file.exists()) return emptyList()
+        return try {
+            json.decodeFromString<List<PendingChange>>(file.readText())
+        } catch (e: Exception) {
+            // Damaged: keep it for inspection instead of overwriting it with the next change.
+            file.keepAsBad()
+            emptyList()
+        }
+    }
 
     @Synchronized
     fun update(block: (List<PendingChange>) -> List<PendingChange>) {
+        if (isClosed()) return
         val updated = block(_changes.value)
+        file.parentFile?.mkdirs()
         file.writeTextAtomically(json.encodeToString(updated))
         _changes.value = updated
     }
@@ -108,6 +128,7 @@ class PendingStore(private val file: File, private val imageDir: File) {
 
     /** Copies a prepared photo to permanent storage (the cache may be cleared). */
     fun keepImage(source: File): String {
+        check(!isClosed()) { "Logged out" }
         imageDir.mkdirs()
         val target = File(imageDir, "pending_${System.currentTimeMillis()}.jpg")
         source.copyTo(target, overwrite = true)

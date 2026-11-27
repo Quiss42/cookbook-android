@@ -6,7 +6,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.ex_parrot.cookbook.data.Account
+import de.ex_parrot.cookbook.data.CertificatePins
 import de.ex_parrot.cookbook.data.CookbookApi
+import kotlinx.coroutines.CompletableDeferred
 import de.ex_parrot.cookbook.data.Http
 import de.ex_parrot.cookbook.data.LoginFlow
 import de.ex_parrot.cookbook.data.SessionManager
@@ -26,6 +28,10 @@ sealed interface LoginStep {
     data object Working : LoginStep
     data class WaitingForBrowser(val loginUrl: String) : LoginStep
     data class Failed(val error: Throwable) : LoginStep
+    /** The server's self-signed certificate: the user compares and confirms the fingerprint. */
+    data class ConfirmCertificate(val fingerprint: String) : LoginStep
+    /** Logging in with another account than the expired one would drop its waiting offline changes. */
+    data class ConfirmOtherAccount(val previousAccount: String, val waitingChanges: Int) : LoginStep
 }
 
 class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
@@ -50,6 +56,21 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
     val openUrl = openUrlChannel.receiveAsFlow()
 
     private var job: Job? = null
+    private var decision: CompletableDeferred<Boolean>? = null
+
+    /** Shows [question] and waits for [decide]. */
+    private suspend fun ask(question: LoginStep): Boolean {
+        val answer = CompletableDeferred<Boolean>()
+        decision = answer
+        step = question
+        return answer.await().also { step = LoginStep.Working }
+    }
+
+    /** The user's answer to a [LoginStep.ConfirmCertificate] or [LoginStep.ConfirmOtherAccount]. */
+    fun decide(accept: Boolean) {
+        decision?.complete(accept)
+        decision = null
+    }
 
     val canSubmit: Boolean
         get() = server.isNotBlank() && (!useAppPassword || (username.isNotBlank() && appPassword.isNotBlank()))
@@ -57,12 +78,14 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
     fun submit() {
         if (!canSubmit) return
         val serverUrl = normalizeServerUrl(server)
-        // A new login accepts a renewed self-signed certificate.
-        if (trustAllCerts) runCatching { Http.pins.forget(URI(serverUrl).host) }
         job?.cancel()
         job = viewModelScope.launch {
             step = LoginStep.Working
             try {
+                if (trustAllCerts && !confirmCertificate(serverUrl)) {
+                    step = LoginStep.Idle
+                    return@launch
+                }
                 if (useAppPassword) {
                     finish(Account(serverUrl, username.trim(), appPassword.trim(), trustAllCerts))
                 } else {
@@ -102,7 +125,34 @@ class LoginViewModel(private val sessionManager: SessionManager) : ViewModel() {
         step = LoginStep.Idle
     }
 
-    private suspend fun finish(account: Account) {
+    /**
+     * For self-signed setups: shows the certificate's fingerprint and pins it
+     * once confirmed. A new login replaces an earlier (e.g. renewed) certificate.
+     * Returns false if the user declined.
+     */
+    private suspend fun confirmCertificate(serverUrl: String): Boolean {
+        val host = URI(serverUrl).host
+        Http.pins.forget(host)
+        val fingerprint = Http.probeCertificate(serverUrl) ?: return true // trusted by the system anyway
+        if (!ask(LoginStep.ConfirmCertificate(CertificatePins.format(fingerprint)))) return false
+        Http.pins.pin(host, fingerprint)
+        return true
+    }
+
+    private suspend fun finish(loggedIn: Account) {
+        val previous = sessionManager.reloginHint
+        // Same account as the expired login (ignoring case): keep its spelling, so its offline folder is used.
+        val sameAccount = previous != null &&
+            previous.server.equals(loggedIn.server, ignoreCase = true) &&
+            previous.loginName.equals(loggedIn.loginName, ignoreCase = true)
+        val account = if (sameAccount) loggedIn.copy(server = previous!!.server, loginName = previous.loginName) else loggedIn
+        if (previous != null && !sameAccount && sessionManager.reloginWaitingChanges > 0) {
+            val name = "${previous.loginName} @ ${runCatching { URI(previous.server).host }.getOrDefault(previous.server)}"
+            if (!ask(LoginStep.ConfirmOtherAccount(name, sessionManager.reloginWaitingChanges))) {
+                step = LoginStep.Idle
+                return
+            }
+        }
         val api = CookbookApi(account, Http.authenticated(account))
         // The first request after returning from the browser may hit a stale
         // connection; retry network errors a few times.

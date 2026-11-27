@@ -156,8 +156,8 @@ object TimerController {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setAutoCancel(true)
             .setContentIntent(openAppIntent(context, timerId))
-            // Shown over the lock screen where Android allows it.
-            .setFullScreenIntent(openAppIntent(context, timerId), true)
+            // On the lock screen: a full-screen alarm page without recipe content.
+            .setFullScreenIntent(alarmScreenIntent(context, timer), true)
             .addAction(0, context.getString(R.string.timer_stop), cancelIntent(context, timerId))
             .build()
         // Keeps ringing until the notification is tapped, stopped or swiped away.
@@ -200,6 +200,14 @@ object TimerController {
             context,
             timerId,
             Intent(context, TimerReceiver::class.java).setAction(ACTION_CANCEL).putExtra(EXTRA_TIMER_ID, timerId),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    private fun alarmScreenIntent(context: Context, timer: CookingTimer): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            timer.id,
+            TimerAlarmActivity.intent(context, timer.id, timer.title),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 

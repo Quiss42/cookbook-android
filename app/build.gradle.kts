@@ -82,9 +82,10 @@ android {
     }
 
     lint {
-        // Lint runs separately; don't let it block release builds.
+        // Problems recorded in the baseline are known; any new one stops the build.
+        baseline = file("lint-baseline.xml")
+        abortOnError = true
         checkReleaseBuilds = false
-        abortOnError = false
     }
 
     androidResources {
@@ -118,4 +119,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockwebserver)
 }

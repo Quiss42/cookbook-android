@@ -23,7 +23,7 @@
     <string name="login_use_app_password">App-Passwort eingeben</string>
     <string name="login_use_app_password_hint">Statt der Anmeldung im Browser. Erstellen in Nextcloud unter Einstellungen → Sicherheit.</string>
     <string name="login_trust_all">Selbst signiertes Zertifikat</string>
-    <string name="login_trust_all_hint">Akzeptiert das Zertifikat des Servers bei der ersten Verbindung und lehnt danach jedes andere ab. Nach dem Erneuern des Zertifikats neu anmelden.</string>
+    <string name="login_trust_all_hint">Beim Anmelden wird der Fingerabdruck des Zertifikats zur Bestätigung angezeigt; danach wird nur dieses Zertifikat akzeptiert. Nach dem Erneuern des Zertifikats neu anmelden.</string>
     <string name="login_waiting">Im Browser anmelden und Zugriff erlauben, dann zu dieser App zurückkehren.</string>
     <string name="login_open_browser">Browser öffnen</string>
     <string name="logout">Abmelden</string>
@@ -238,4 +238,17 @@
     <string name="error_certificate_changed">Das Zertifikat des Servers hat sich geändert. Wenn du es erneuert hast, melde dich neu an.</string>
     <string name="error_image_too_large">Das Bild ist größer als 20 MB.</string>
     <string name="error_invalid_response">Unerwartete Antwort vom Server, vielleicht eine WLAN-Anmeldeseite.</string>
+    <string name="certificate_changed_title">Zertifikat des Servers geändert</string>
+    <string name="certificate_changed_text">Der Server zeigt ein anderes Zertifikat als das bestätigte. Wenn du es erneuert hast, melde dich neu an und vergleiche den neuen Fingerabdruck. Offline gemachte Änderungen bleiben erhalten.</string>
+    <string name="certificate_confirm_title">Diesem Zertifikat vertrauen?</string>
+    <string name="certificate_confirm_text">Der Server nutzt ein Zertifikat, das das Handy nicht kennt. Fahre nur fort, wenn dieser SHA-256-Fingerabdruck mit dem deines Servers übereinstimmt (z. B. im Browser oder mit openssl angezeigt).</string>
+    <string name="certificate_trust">Vertrauen</string>
+    <string name="error_certificate_unconfirmed">Das Zertifikat des Servers wurde nicht bestätigt. Melde dich neu an, um es zu prüfen und zu bestätigen.</string>
+    <string name="other_account_title">Mit einem anderen Konto anmelden?</string>
+    <plurals name="other_account_text">
+        <item quantity="one">%1$d offline gemachte Änderung von %2$s ist noch nicht hochgeladen. Sie bleibt nur erhalten, wenn du dich mit diesem Konto anmeldest. Trotzdem fortfahren und sie verwerfen?</item>
+        <item quantity="other">%1$d offline gemachte Änderungen von %2$s sind noch nicht hochgeladen. Sie bleiben nur erhalten, wenn du dich mit diesem Konto anmeldest. Trotzdem fortfahren und sie verwerfen?</item>
+    </plurals>
+    <string name="other_account_continue">Fortfahren</string>
+    <string name="timer_open">Timer öffnen</string>
 </resources>

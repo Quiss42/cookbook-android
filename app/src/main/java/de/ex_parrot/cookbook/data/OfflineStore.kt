@@ -24,15 +24,21 @@ data class OfflineStatus(
  * Keeps the server's answers as files on the phone, so recipes can be read
  * without a connection. One folder per account.
  */
-class OfflineStore(context: Context, account: Account) {
-    private val dir = File(context.filesDir, "offline/${sha1("${account.server}|${account.loginName}")}").apply { mkdirs() }
+class OfflineStore(private val dir: File) {
+    constructor(context: Context, account: Account) : this(dirFor(context, account))
+
+    /** Set on logout: from then on nothing is written, so a running upload can't bring the folder back. */
+    @Volatile
+    var closed = false
+        private set
+
     private val responses = File(dir, "responses").apply { mkdirs() }
     private val indexFile = File(dir, "index.json")
     private val lastSyncFile = File(dir, "last_sync")
     private val idMapFile = File(dir, "uploaded_ids.json")
 
     /** Changes made offline, waiting for upload. */
-    val pending = PendingStore(File(dir, "pending.json"), File(dir, "pending_images"))
+    val pending = PendingStore(File(dir, "pending.json"), File(dir, "pending_images")) { closed }
 
     private val _offline = MutableStateFlow(false)
     /** True while the shown data comes from the phone because the server is unreachable. */
@@ -44,7 +50,7 @@ class OfflineStore(context: Context, account: Account) {
     private fun fileFor(url: HttpUrl) = File(responses, sha1(url.encodedPath + "?" + url.encodedQuery.orEmpty()))
 
     suspend fun write(url: HttpUrl, body: String) = withContext(Dispatchers.IO) {
-        fileFor(url).writeTextAtomically(body)
+        if (!closed) fileFor(url).writeTextAtomically(body)
     }
 
     suspend fun read(url: HttpUrl): String? = withContext(Dispatchers.IO) {
@@ -61,6 +67,7 @@ class OfflineStore(context: Context, account: Account) {
         runCatching { Json.decodeFromString<Map<String, String>>(indexFile.readText()) }.getOrDefault(emptyMap())
 
     suspend fun writeIndex(index: Map<String, String>) = withContext(Dispatchers.IO) {
+        if (closed) return@withContext
         indexFile.writeTextAtomically(Json.encodeToString(index))
         _status.value = _status.value.copy(recipeCount = index.size)
     }
@@ -70,12 +77,14 @@ class OfflineStore(context: Context, account: Account) {
         runCatching { Json.decodeFromString<Map<String, String>>(idMapFile.readText()) }.getOrDefault(emptyMap())
 
     fun writeIdMap(map: Map<String, String>) {
+        if (closed) return
         idMapFile.writeTextAtomically(Json.encodeToString(map))
     }
 
     private fun readLastSync(): Long? = runCatching { lastSyncFile.readText().trim().toLong() }.getOrNull()
 
     suspend fun markSynced() = withContext(Dispatchers.IO) {
+        if (closed) return@withContext
         val now = System.currentTimeMillis()
         lastSyncFile.writeTextAtomically(now.toString())
         _status.value = _status.value.copy(lastSync = now)
@@ -87,11 +96,28 @@ class OfflineStore(context: Context, account: Account) {
 
     /** Deletes everything stored for this account (on logout). */
     fun clear() {
-        dir.deleteRecursively()
+        closed = true
+        // Same lock as PendingStore.update, so no queue write can recreate the folder meanwhile.
+        synchronized(pending) { dir.deleteRecursively() }
     }
 
-    private companion object {
-        fun sha1(text: String): String =
+    companion object {
+        private fun sha1(text: String): String =
             MessageDigest.getInstance("SHA-1").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
+
+        private fun root(context: Context) = File(context.filesDir, "offline")
+
+        fun dirFor(context: Context, account: Account) = File(root(context), sha1("${account.server}|${account.loginName}"))
+
+        /** Number of changes still waiting in [account]'s folder (without opening a session). */
+        fun pendingCount(context: Context, account: Account): Int =
+            PendingStore(File(dirFor(context, account), "pending.json"), File(dirFor(context, account), "pending_images")) { true }
+                .changes.value.size
+
+        /** Deletes the offline folders of all other accounts, e.g. after logging in with a different one. */
+        fun removeOtherAccounts(context: Context, keep: Account) {
+            val keepDir = dirFor(context, keep)
+            root(context).listFiles()?.filter { it.isDirectory && it != keepDir }?.forEach { it.deleteRecursively() }
+        }
     }
 }

@@ -70,6 +70,25 @@ class OverlayTest {
     }
 
     @Test
+    fun sameContent_includesKeywordsTimesAndNutrition() {
+        val base = recipe("Brot")
+        assertFalse(sameContent(base, JsonObject(base + ("keywords" to JsonPrimitive("Frühstück")))))
+        assertFalse(sameContent(base, JsonObject(base + ("prepTime" to JsonPrimitive("PT10M")))))
+        val nutrition = JsonObject(mapOf("@type" to JsonPrimitive("NutritionInformation"), "calories" to JsonPrimitive("200 kcal")))
+        assertFalse(sameContent(base, JsonObject(base + ("nutrition" to nutrition))))
+        // The image path is rewritten by the server and not compared.
+        assertTrue(sameContent(base, JsonObject(base + ("image" to JsonPrimitive("/Rezepte/Brot/full.jpg")))))
+    }
+
+    @Test
+    fun parseServerTime_readsCommonFormats() {
+        assertEquals(1767225600000L, parseServerTime("2026-01-01T00:00:00+0000"))
+        assertEquals(1767225600000L, parseServerTime("2026-01-01T00:00:00+00:00"))
+        assertEquals(1767225600000L, parseServerTime("2026-01-01T00:00:00Z"))
+        assertEquals(null, parseServerTime(""))
+    }
+
+    @Test
     fun sameContent_comparesEditedFields() {
         val mine = JsonObject(recipe("Brot").toMutableMap().apply { put("recipeIngredient", JsonArray(listOf(JsonPrimitive("Mehl")))) })
         val server = JsonObject(mine + ("dateModified" to JsonPrimitive("2026-01-01")))

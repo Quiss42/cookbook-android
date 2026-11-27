@@ -27,7 +27,7 @@
     <string name="login_use_app_password">Enter an app password</string>
     <string name="login_use_app_password_hint">Instead of logging in through the browser. Create one in Nextcloud under Settings → Security.</string>
     <string name="login_trust_all">Self-signed certificate</string>
-    <string name="login_trust_all_hint">Accepts the server\'s certificate on the first connection and refuses any other certificate afterwards. After renewing the certificate, log in again.</string>
+    <string name="login_trust_all_hint">On login, the certificate\'s fingerprint is shown for you to confirm; after that only this certificate is accepted. After renewing the certificate, log in again.</string>
     <string name="login_waiting">Log in and grant access in the browser, then return to this app.</string>
     <string name="login_open_browser">Open browser</string>
     <string name="logout">Log out</string>
@@ -253,4 +253,17 @@
     <string name="error_certificate_changed">The server\'s certificate has changed. If you renewed it, log in again.</string>
     <string name="error_image_too_large">The picture is larger than 20 MB.</string>
     <string name="error_invalid_response">Unexpected answer from the server, perhaps a Wi-Fi login page.</string>
+    <string name="certificate_changed_title">Server certificate changed</string>
+    <string name="certificate_changed_text">The server presents a different certificate than the one you confirmed. If you renewed it, log in again and compare the new fingerprint. Changes made offline are kept.</string>
+    <string name="certificate_confirm_title">Trust this certificate?</string>
+    <string name="certificate_confirm_text">The server uses a certificate the phone does not know. Only continue if this SHA-256 fingerprint matches the one of your server (e.g. shown by your browser or with openssl).</string>
+    <string name="certificate_trust">Trust</string>
+    <string name="error_certificate_unconfirmed">The server\'s certificate has not been confirmed. Log in again to check and confirm it.</string>
+    <string name="other_account_title">Log in with another account?</string>
+    <plurals name="other_account_text">
+        <item quantity="one">%1$d change made offline by %2$s has not been uploaded yet. It is only kept if you log in with that account. Continue anyway and discard it?</item>
+        <item quantity="other">%1$d changes made offline by %2$s have not been uploaded yet. They are only kept if you log in with that account. Continue anyway and discard them?</item>
+    </plurals>
+    <string name="other_account_continue">Continue</string>
+    <string name="timer_open">Open timers</string>
 </resources>

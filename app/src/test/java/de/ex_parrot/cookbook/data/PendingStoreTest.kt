@@ -43,8 +43,24 @@ class PendingStoreTest {
     }
 
     @Test
+    fun damagedQueue_isKeptAsideNotOverwritten() {
+        File(folder.root, "pending.json").writeText("{kaputt")
+        val store = store()
+        assertTrue(store.changes.value.isEmpty())
+        store.update { it + PendingChange(1, PendingChange.Type.DELETE, "7", "Brot") }
+        assertEquals(1, folder.root.listFiles()!!.count { it.name.startsWith("pending.json.bad-") })
+    }
+
+    @Test
+    fun closedStore_writesNothing() {
+        val store = PendingStore(File(folder.root, "gone/pending.json"), File(folder.root, "gone/images")) { true }
+        store.update { it + PendingChange(1, PendingChange.Type.DELETE, "7", "Brot") }
+        assertFalse(File(folder.root, "gone").exists())
+    }
+
+    @Test
     fun writeTextAtomically_replacesExistingFile() {
-        val file = File(folder.root, "a/b.txt")
+        val file = File(folder.newFolder("a"), "b.txt")
         file.writeTextAtomically("eins")
         file.writeTextAtomically("zwei")
         assertEquals("zwei", file.readText())
