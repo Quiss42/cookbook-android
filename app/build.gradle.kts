@@ -90,7 +90,7 @@ android {
         disable += setOf("GradleDependency", "AndroidGradlePluginVersion", "NewerVersionAvailable")
         // Full list in the CI log.
         textReport = true
-        textOutput = file("stdout")
+        textOutput = file("build/reports/lint-results.txt")
     }
 
     androidResources {

@@ -37,10 +37,10 @@ jobs:
       - name: Lint
         run: ./gradlew :app:lintDebug
 
-      - name: Show new lint baseline
-        # Lint writes app/lint-baseline.xml on its first run (and then fails once).
+      - name: Show lint findings
         if: failure()
-        run: cat app/lint-baseline.xml || true
+        run: cat app/build/reports/lint-results.txt || true
+
 
       - name: Upload test and lint reports
         if: always()
