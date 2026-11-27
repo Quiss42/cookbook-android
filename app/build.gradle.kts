@@ -86,6 +86,9 @@ android {
         baseline = file("lint-baseline.xml")
         abortOnError = true
         checkReleaseBuilds = false
+        // Full list in the CI log.
+        textReport = true
+        textOutput = file("stdout")
     }
 
     androidResources {
