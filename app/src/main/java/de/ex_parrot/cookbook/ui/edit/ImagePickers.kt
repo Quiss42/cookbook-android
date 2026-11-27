@@ -59,7 +59,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -200,7 +202,8 @@ private fun ImageChip(icon: ImageVector, label: String, onClick: () -> Unit) {
 @Composable
 private fun WebImageDialog(initialUrl: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
     var url by remember { mutableStateOf(initialUrl) }
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val clipboardScope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.image_from_web)) },
@@ -214,7 +217,12 @@ private fun WebImageDialog(initialUrl: String, onConfirm: (String) -> Unit, onDi
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     trailingIcon = {
-                        IconButton(onClick = { clipboard.getText()?.text?.let { url = extractUrl(it) ?: it } }) {
+                        IconButton(onClick = {
+                        clipboardScope.launch {
+                            clipboard.getClipEntry()?.clipData?.takeIf { it.itemCount > 0 }
+                                ?.getItemAt(0)?.text?.toString()?.let { url = extractUrl(it) ?: it }
+                        }
+                    }) {
                             Icon(Icons.Outlined.ContentPaste, stringResource(R.string.paste))
                         }
                     },

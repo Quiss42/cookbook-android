@@ -41,6 +41,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -91,25 +92,23 @@ fun SettingsScreen(
             SectionHeader(stringResource(R.string.settings_appearance))
             ThemeMode.entries.forEach { mode ->
                 ListItem(
-                    headlineContent = {
-                        Text(
-                            stringResource(
-                                when (mode) {
-                                    ThemeMode.SYSTEM -> R.string.theme_system
-                                    ThemeMode.LIGHT -> R.string.theme_light
-                                    ThemeMode.DARK -> R.string.theme_dark
-                                },
-                            ),
-                        )
-                    },
                     leadingContent = { RadioButton(selected = settings.themeMode == mode, onClick = null) },
                     modifier = Modifier.selectable(selected = settings.themeMode == mode) {
                         scope.launch { settingsStore.setThemeMode(mode) }
                     },
-                )
+                ) {
+                    Text(
+                        stringResource(
+                            when (mode) {
+                                ThemeMode.SYSTEM -> R.string.theme_system
+                                ThemeMode.LIGHT -> R.string.theme_light
+                                ThemeMode.DARK -> R.string.theme_dark
+                            },
+                        ),
+                    )
+                }
             }
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_category_columns)) },
                 supportingContent = {
                     SingleChoiceSegmentedButtonRow(Modifier.padding(top = 8.dp)) {
                         (1..3).forEach { count ->
@@ -121,7 +120,7 @@ fun SettingsScreen(
                         }
                     }
                 },
-            )
+            ) { Text(stringResource(R.string.settings_category_columns)) }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 SwitchItem(
                     title = stringResource(R.string.settings_dynamic_color),
@@ -131,14 +130,13 @@ fun SettingsScreen(
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_language)) },
                     supportingContent = { Text(stringResource(R.string.settings_language_hint)) },
                     modifier = Modifier.clickable {
                         context.startActivity(
                             Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.parse("package:${context.packageName}")),
                         )
                     },
-                )
+                ) { Text(stringResource(R.string.settings_language)) }
             }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -152,21 +150,16 @@ fun SettingsScreen(
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionHeader(stringResource(R.string.settings_account))
             ListItem(
-                headlineContent = { Text(session.account.loginName) },
                 supportingContent = { Text(session.account.server) },
-            )
+            ) { Text(session.account.loginName) }
             ListItem(
-                headlineContent = { Text(stringResource(R.string.logout), color = MaterialTheme.colorScheme.error) },
                 modifier = Modifier.clickable { confirmLogout = true },
-            )
+            ) { Text(stringResource(R.string.logout), color = MaterialTheme.colorScheme.error) }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionHeader(stringResource(R.string.settings_offline))
             val offlineStatus by session.offlineStore.status.collectAsStateWithLifecycle()
             ListItem(
-                headlineContent = {
-                    Text(androidx.compose.ui.res.pluralStringResource(R.plurals.offline_recipe_count, offlineStatus.recipeCount, offlineStatus.recipeCount))
-                },
                 supportingContent = {
                     Text(
                         when {
@@ -186,7 +179,9 @@ fun SettingsScreen(
                         }
                     }
                 },
-            )
+            ) {
+                Text(pluralStringResource(R.plurals.offline_recipe_count, offlineStatus.recipeCount, offlineStatus.recipeCount))
+            }
 
             val pendingChanges by session.offlineStore.pending.changes.collectAsStateWithLifecycle()
             if (pendingChanges.isNotEmpty()) {
@@ -197,7 +192,6 @@ fun SettingsScreen(
                 )
                 pendingChanges.forEach { change ->
                     ListItem(
-                        headlineContent = { Text(change.name.ifBlank { "–" }) },
                         supportingContent = {
                             val kind = stringResource(
                                 when (change.type) {
@@ -218,19 +212,18 @@ fun SettingsScreen(
                                 Icon(Icons.Outlined.Delete, stringResource(R.string.pending_discard))
                             }
                         },
-                    )
+                    ) { Text(change.name.ifBlank { "–" }) }
                 }
             }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionHeader(stringResource(R.string.settings_updates))
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_check_updates_on_start)) },
                 trailingContent = { Checkbox(checked = settings.checkUpdatesOnStart, onCheckedChange = null) },
                 modifier = Modifier.clickable {
                     scope.launch { settingsStore.setCheckUpdatesOnStart(!settings.checkUpdatesOnStart) }
                 },
-            )
+            ) { Text(stringResource(R.string.settings_check_updates_on_start)) }
             OutlinedButton(
                 onClick = {
                     checkingUpdates = true
@@ -271,9 +264,8 @@ fun SettingsScreen(
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             ListItem(
-                headlineContent = { Text(stringResource(R.string.app_name)) },
                 supportingContent = { Text(stringResource(R.string.settings_version, BuildConfig.VERSION_NAME)) },
-            )
+            ) { Text(stringResource(R.string.app_name)) }
         }
     }
 
@@ -285,7 +277,7 @@ fun SettingsScreen(
                 val waiting = session.offlineStore.pending.changes.value.size
                 Text(
                     stringResource(R.string.logout_confirm) +
-                        if (waiting > 0) "\n\n" + androidx.compose.ui.res.pluralStringResource(R.plurals.logout_pending_lost, waiting, waiting) else "",
+                        if (waiting > 0) "\n\n" + pluralStringResource(R.plurals.logout_pending_lost, waiting, waiting) else "",
                 )
             },
             confirmButton = {
@@ -311,9 +303,8 @@ private fun SectionHeader(text: String) {
 @Composable
 private fun SwitchItem(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     ListItem(
-        headlineContent = { Text(title) },
         supportingContent = { Text(subtitle) },
         trailingContent = { Switch(checked = checked, onCheckedChange = null) },
         modifier = Modifier.clickable { onChange(!checked) },
-    )
+    ) { Text(title) }
 }

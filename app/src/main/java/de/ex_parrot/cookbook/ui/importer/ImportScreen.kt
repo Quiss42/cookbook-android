@@ -29,7 +29,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -95,7 +96,8 @@ fun ImportScreen(
     onImported: (id: String, name: String) -> Unit,
     onBack: () -> Unit,
 ) {
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val clipboardScope = rememberCoroutineScope()
     LaunchedEffect(viewModel.state) {
         (viewModel.state as? ImportState.Done)?.let { onImported(it.recipe.id, it.recipe.name) }
     }
@@ -132,7 +134,12 @@ fun ImportScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { viewModel.import() }),
                 trailingIcon = {
-                    IconButton(onClick = { clipboard.getText()?.text?.let { viewModel.url = extractUrl(it) ?: it } }) {
+                    IconButton(onClick = {
+                        clipboardScope.launch {
+                            clipboard.getClipEntry()?.clipData?.takeIf { it.itemCount > 0 }
+                                ?.getItemAt(0)?.text?.toString()?.let { viewModel.url = extractUrl(it) ?: it }
+                        }
+                    }) {
                         Icon(Icons.Outlined.ContentPaste, stringResource(R.string.paste))
                     }
                 },

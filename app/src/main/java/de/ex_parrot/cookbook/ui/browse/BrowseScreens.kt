@@ -238,7 +238,6 @@ fun RecipeList(recipes: List<RecipeStub>, session: Session, onOpenRecipe: (Recip
     LazyColumn(Modifier.fillMaxSize()) {
         items(recipes, key = { it.id }) { recipe ->
             ListItem(
-                headlineContent = { Text(recipe.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
                 supportingContent = recipe.keywords.takeIf { it.isNotBlank() }?.let {
                     { Text(it.replace(",", ", "), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 },
@@ -250,7 +249,7 @@ fun RecipeList(recipes: List<RecipeStub>, session: Session, onOpenRecipe: (Recip
                     )
                 },
                 modifier = Modifier.clickable { onOpenRecipe(recipe) },
-            )
+            ) { Text(recipe.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }
             HorizontalDivider(Modifier.padding(start = 88.dp))
         }
     }

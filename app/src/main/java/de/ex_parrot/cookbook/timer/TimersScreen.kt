@@ -73,7 +73,6 @@ fun TimersScreen(onOpenRecipe: (id: String, name: String) -> Unit, onBack: () ->
                     val remaining = (timer.endsAt - now).coerceAtLeast(0)
                     val progress = if (timer.durationMillis > 0) 1f - remaining.toFloat() / timer.durationMillis else 1f
                     ListItem(
-                        headlineContent = { Text(timer.title) },
                         supportingContent = {
                             Column {
                                 Text(
@@ -93,7 +92,7 @@ fun TimersScreen(onOpenRecipe: (id: String, name: String) -> Unit, onBack: () ->
                             }
                         },
                         modifier = Modifier.clickable { onOpenRecipe(timer.recipeId, timer.title) },
-                    )
+                    ) { Text(timer.title) }
                     HorizontalDivider()
                 }
             }
