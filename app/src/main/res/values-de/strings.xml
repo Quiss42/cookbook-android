@@ -168,7 +168,10 @@
     <string name="edit_hidden_nutrition">Nährwert: %1$s</string>
     <string name="edit_hidden_delete_all">Alle löschen</string>
     <string name="edit_hidden_delete_all_title">Alle weiteren Angaben löschen?</string>
-    <string name="edit_hidden_delete_all_text">%1$d Angaben werden beim Speichern aus dem Rezept entfernt.</string>
+    <plurals name="edit_hidden_delete_all_text">
+        <item quantity="one">%1$d Angabe wird beim Speichern aus dem Rezept entfernt.</item>
+        <item quantity="other">%1$d Angaben werden beim Speichern aus dem Rezept entfernt.</item>
+    </plurals>
     <string name="nutrition_serving_size_value">1 Portion</string>
     <string name="edit_fix_decimal">Dezimaltrenner korrigieren</string>
 
@@ -241,7 +244,7 @@
     <string name="certificate_changed_title">Zertifikat des Servers geändert</string>
     <string name="certificate_changed_text">Der Server zeigt ein anderes Zertifikat als das bestätigte. Wenn du es erneuert hast, melde dich neu an und vergleiche den neuen Fingerabdruck. Offline gemachte Änderungen bleiben erhalten.</string>
     <string name="certificate_confirm_title">Diesem Zertifikat vertrauen?</string>
-    <string name="certificate_confirm_text">Der Server nutzt ein Zertifikat, das das Handy nicht kennt. Fahre nur fort, wenn dieser SHA-256-Fingerabdruck mit dem deines Servers übereinstimmt (z. B. im Browser oder mit openssl angezeigt).</string>
+    <string name="certificate_confirm_text">Der Server nutzt ein Zertifikat, das dem Handy unbekannt ist. Fahre nur fort, wenn dieser SHA-256-Fingerabdruck mit dem deines Servers übereinstimmt (z. B. im Browser oder mit openssl angezeigt).</string>
     <string name="certificate_trust">Vertrauen</string>
     <string name="error_certificate_unconfirmed">Das Zertifikat des Servers wurde nicht bestätigt. Melde dich neu an, um es zu prüfen und zu bestätigen.</string>
     <string name="other_account_title">Mit einem anderen Konto anmelden?</string>

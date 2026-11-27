@@ -125,7 +125,7 @@ class EditRecipeViewModel(
     val files: NextcloudFiles,
     private val appContext: Context,
     private val recipeId: String?,
-    private val savedState: SavedStateHandle = SavedStateHandle(),
+    private val savedState: SavedStateHandle,
 ) : ViewModel() {
     val isNew = recipeId == null
 

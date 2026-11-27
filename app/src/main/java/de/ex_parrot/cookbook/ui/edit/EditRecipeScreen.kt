@@ -2,6 +2,7 @@
 
 package de.ex_parrot.cookbook.ui.edit
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -329,7 +330,7 @@ private fun HiddenEntriesSection(vm: EditRecipeViewModel) {
         AlertDialog(
             onDismissRequest = { confirmAll = false },
             title = { Text(stringResource(R.string.edit_hidden_delete_all_title)) },
-            text = { Text(stringResource(R.string.edit_hidden_delete_all_text, entries.size)) },
+            text = { Text(pluralStringResource(R.plurals.edit_hidden_delete_all_text, entries.size, entries.size)) },
             confirmButton = {
                 TextButton(onClick = { vm.removeAllHidden(); confirmAll = false }) {
                     Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)

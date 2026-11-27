@@ -1,5 +1,6 @@
 package de.ex_parrot.cookbook.data
 
+import androidx.core.content.edit
 import android.content.Context
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -36,19 +37,20 @@ class CookingProgressStore(context: Context) {
     }
 
     fun save(recipeId: String, progress: CookingProgress) {
-        val editor = prefs.edit()
-        if (progress.ingredients.isEmpty() && progress.steps.isEmpty()) {
-            editor.remove(recipeId)
-        } else {
-            editor.putString(recipeId, Json.encodeToString(progress.copy(savedAt = System.currentTimeMillis())))
-        }
-        // Drop old entries of other recipes.
+        // Old entries of other recipes are dropped on the way.
         val limit = System.currentTimeMillis() - MAX_AGE_MILLIS
-        prefs.all.forEach { (key, value) ->
+        val outdated = prefs.all.filter { (key, value) ->
             val savedAt = (value as? String)?.let { runCatching { Json.decodeFromString<CookingProgress>(it).savedAt }.getOrNull() }
-            if (key != recipeId && (savedAt == null || savedAt < limit)) editor.remove(key)
+            key != recipeId && (savedAt == null || savedAt < limit)
+        }.keys
+        prefs.edit {
+            outdated.forEach(::remove)
+            if (progress.ingredients.isEmpty() && progress.steps.isEmpty()) {
+                remove(recipeId)
+            } else {
+                putString(recipeId, Json.encodeToString(progress.copy(savedAt = System.currentTimeMillis())))
+            }
         }
-        editor.apply()
     }
 
     companion object {

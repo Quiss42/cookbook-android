@@ -1,5 +1,6 @@
 package de.ex_parrot.cookbook.data
 
+import androidx.core.graphics.scale
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -104,7 +105,7 @@ object ImageTools {
         }
         val scale = minOf(1f, MAX_SIDE.toFloat() / maxOf(bitmap.width, bitmap.height))
         if (scale < 1f) {
-            bitmap = Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
+            bitmap = bitmap.scale((bitmap.width * scale).toInt(), (bitmap.height * scale).toInt())
         }
         return bitmap
     }

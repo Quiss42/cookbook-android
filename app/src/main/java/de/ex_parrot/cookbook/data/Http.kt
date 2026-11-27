@@ -1,5 +1,6 @@
 package de.ex_parrot.cookbook.data
 
+import android.annotation.SuppressLint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -189,6 +190,8 @@ private fun systemTrustManager(): X509TrustManager =
         .trustManagers.filterIsInstance<X509TrustManager>().first()
 
 /** Uses the system's checks; otherwise accepts only the confirmed certificate. */
+// Delegates to the system first; only adds the user-confirmed fingerprint.
+@SuppressLint("CustomX509TrustManager")
 private class PinningTrustManager(
     private val host: String,
     private val pins: CertificatePins,
@@ -224,6 +227,8 @@ private class PinningTrustManager(
 }
 
 /** Remembers the fingerprint of a certificate the system does not trust, and refuses it. */
+// Delegates to the system first; only adds the user-confirmed fingerprint.
+@SuppressLint("CustomX509TrustManager")
 private class CapturingTrustManager : X509TrustManager {
     private val system = systemTrustManager()
 

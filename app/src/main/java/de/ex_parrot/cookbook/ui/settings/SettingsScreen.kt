@@ -2,8 +2,9 @@
 
 package de.ex_parrot.cookbook.ui.settings
 
+import androidx.core.net.toUri
+import androidx.compose.ui.platform.LocalResources
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.clickable
@@ -71,6 +72,7 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var confirmLogout by remember { mutableStateOf(false) }
@@ -133,7 +135,7 @@ fun SettingsScreen(
                     supportingContent = { Text(stringResource(R.string.settings_language_hint)) },
                     modifier = Modifier.clickable {
                         context.startActivity(
-                            Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.parse("package:${context.packageName}")),
+                            Intent(Settings.ACTION_APP_LOCALE_SETTINGS, "package:${context.packageName}".toUri()),
                         )
                     },
                 ) { Text(stringResource(R.string.settings_language)) }
@@ -235,7 +237,7 @@ fun SettingsScreen(
                             } else {
                                 Toast.makeText(
                                     context,
-                                    context.getString(R.string.update_none, BuildConfig.VERSION_NAME),
+                                    resources.getString(R.string.update_none, BuildConfig.VERSION_NAME),
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }
@@ -244,7 +246,7 @@ fun SettingsScreen(
                         } catch (e: Throwable) {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.update_check_failed),
+                                resources.getString(R.string.update_check_failed),
                                 Toast.LENGTH_LONG,
                             ).show()
                         } finally {
@@ -274,7 +276,8 @@ fun SettingsScreen(
             onDismissRequest = { confirmLogout = false },
             title = { Text(stringResource(R.string.logout)) },
             text = {
-                val waiting = session.offlineStore.pending.changes.value.size
+                val pendingNow by session.offlineStore.pending.changes.collectAsStateWithLifecycle()
+                val waiting = pendingNow.size
                 Text(
                     stringResource(R.string.logout_confirm) +
                         if (waiting > 0) "\n\n" + pluralStringResource(R.plurals.logout_pending_lost, waiting, waiting) else "",

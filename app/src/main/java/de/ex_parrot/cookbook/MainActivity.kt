@@ -1,9 +1,10 @@
 package de.ex_parrot.cookbook
 
+import androidx.core.net.toUri
+import androidx.compose.ui.platform.LocalResources
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
@@ -122,7 +123,7 @@ class MainActivity : ComponentActivity() {
                         info = info,
                         onInstall = {
                             container.availableUpdate.value = null
-                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl)))
+                            startActivity(Intent(Intent.ACTION_VIEW, info.downloadUrl.toUri()))
                         },
                         onDismiss = { container.availableUpdate.value = null },
                     )
@@ -185,9 +186,10 @@ private fun MainNavigation(container: AppContainer, session: Session, settings: 
     val pendingChanges by session.offlineStore.pending.changes.collectAsStateWithLifecycle()
     val offline = offlineNow || pendingChanges.isNotEmpty()
 
+    val resources = LocalResources.current
     LaunchedEffect(session) {
         session.repository.notices.collect { detail ->
-            Toast.makeText(context, context.getString(R.string.upload_image_missing, detail), Toast.LENGTH_LONG).show()
+            Toast.makeText(context, resources.getString(R.string.upload_image_missing, detail), Toast.LENGTH_LONG).show()
         }
     }
 

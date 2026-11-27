@@ -2,6 +2,7 @@
 
 package de.ex_parrot.cookbook.ui.edit
 
+import androidx.compose.runtime.mutableIntStateOf
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -250,7 +251,7 @@ private fun CloudImagePicker(
     val stack = remember { mutableStateListOf("/") }
     val path = stack.last()
     var state by remember { mutableStateOf<Loadable<List<CloudEntry>>>(Loadable.Loading) }
-    var reload by remember { mutableStateOf(0) }
+    var reload by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(path, reload) {
         state = Loadable.Loading

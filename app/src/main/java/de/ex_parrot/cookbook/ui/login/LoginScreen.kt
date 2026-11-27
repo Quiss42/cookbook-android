@@ -1,9 +1,9 @@
 package de.ex_parrot.cookbook.ui.login
 
+import androidx.core.net.toUri
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -232,7 +232,7 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheck
 }
 
 private fun openInBrowser(context: Context, url: String) {
-    val uri = Uri.parse(url)
+    val uri = url.toUri()
     try {
         CustomTabsIntent.Builder().build().launchUrl(context, uri)
     } catch (e: ActivityNotFoundException) {

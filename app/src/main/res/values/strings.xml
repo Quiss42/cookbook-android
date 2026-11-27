@@ -181,7 +181,10 @@
     <string name="edit_hidden_nutrition">Nutrition: %1$s</string>
     <string name="edit_hidden_delete_all">Delete all</string>
     <string name="edit_hidden_delete_all_title">Delete all other values?</string>
-    <string name="edit_hidden_delete_all_text">%1$d values will be removed from the recipe when you save.</string>
+    <plurals name="edit_hidden_delete_all_text">
+        <item quantity="one">%1$d value will be removed from the recipe when you save.</item>
+        <item quantity="other">%1$d values will be removed from the recipe when you save.</item>
+    </plurals>
     <string name="nutrition_serving_size_value">1 serving</string>
     <string name="edit_fix_decimal">Fix decimal separator</string>
 
